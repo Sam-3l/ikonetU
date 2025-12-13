@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { MapPin, Building2, Edit2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 interface InvestorProfileProps {
   name: string;
@@ -14,8 +18,7 @@ interface InvestorProfileProps {
   sectors: string[];
   stages: string[];
   supportTypes: string[];
-  onEditProfile?: () => void;
-  onEditPreferences?: () => void;
+  onEditProfile?: (data: { firm_name: string; title: string; thesis: string; sectors: string[]; stages: string[]; support_types: string[] }) => void;
 }
 
 export default function InvestorProfile({
@@ -29,8 +32,62 @@ export default function InvestorProfile({
   stages,
   supportTypes,
   onEditProfile,
-  onEditPreferences,
 }: InvestorProfileProps) {
+  const [editMode, setEditMode] = useState(false);
+  const [formData, setFormData] = useState({
+    firm_name: firm,
+    title: role,
+    thesis,
+    sectors,
+    stages,
+    support_types: supportTypes,
+  });
+
+  const handleSave = () => {
+    onEditProfile?.(formData);
+    setEditMode(false);
+  };
+
+  if (editMode) {
+    return (
+      <Card className="overflow-visible">
+        <CardContent className="p-6 space-y-4">
+          <h3 className="font-display text-xl font-semibold mb-4">Edit Profile</h3>
+          
+          <div className="space-y-2">
+            <Label>Firm Name</Label>
+            <Input 
+              value={formData.firm_name} 
+              onChange={(e) => setFormData({...formData, firm_name: e.target.value})}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Title</Label>
+            <Input 
+              value={formData.title} 
+              onChange={(e) => setFormData({...formData, title: e.target.value})}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Investment Thesis</Label>
+            <Textarea 
+              value={formData.thesis} 
+              onChange={(e) => setFormData({...formData, thesis: e.target.value})}
+              className="min-h-[100px]"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button onClick={handleSave} className="flex-1">Save Changes</Button>
+            <Button variant="outline" onClick={() => setEditMode(false)}>Cancel</Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="overflow-visible" data-testid="investor-profile">
       <CardContent className="p-6">
@@ -54,7 +111,7 @@ export default function InvestorProfile({
               </div>
             </div>
           </div>
-          <Button size="icon" variant="ghost" onClick={onEditProfile} data-testid="button-edit-investor-profile">
+          <Button size="icon" variant="ghost" onClick={() => setEditMode(true)} data-testid="button-edit-investor-profile">
             <Edit2 className="h-4 w-4" />
           </Button>
         </div>
@@ -66,17 +123,7 @@ export default function InvestorProfile({
 
         <div className="space-y-4">
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-muted-foreground">Sectors</h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onEditPreferences}
-                className="h-7 text-xs"
-              >
-                Edit
-              </Button>
-            </div>
+            <h3 className="text-sm font-medium text-muted-foreground mb-2">Sectors</h3>
             <div className="flex flex-wrap gap-2">
               {sectors.map((sector) => (
                 <Badge key={sector} variant="secondary">

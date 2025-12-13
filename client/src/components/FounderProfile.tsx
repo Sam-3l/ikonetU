@@ -1,8 +1,12 @@
-import { MapPin, Building2, Eye, Users, MessageCircle, TrendingUp } from "lucide-react";
+import { useState } from "react";
+import { MapPin, Building2, Eye, Users, TrendingUp } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 interface FounderProfileProps {
   name: string;
@@ -17,7 +21,7 @@ interface FounderProfileProps {
     matches: number;
     responseRate: number;
   };
-  onEditProfile?: () => void;
+  onEditProfile?: (data: { company_name: string; location: string; bio: string; sector: string; stage: string }) => void;
   onEditVideo?: () => void;
 }
 
@@ -33,6 +37,76 @@ export default function FounderProfile({
   onEditProfile,
   onEditVideo,
 }: FounderProfileProps) {
+  const [editMode, setEditMode] = useState(false);
+  const [formData, setFormData] = useState({
+    company_name: company,
+    location,
+    bio,
+    sector,
+    stage,
+  });
+
+  const handleSave = () => {
+    onEditProfile?.(formData);
+    setEditMode(false);
+  };
+
+  if (editMode) {
+    return (
+      <Card className="overflow-visible">
+        <CardContent className="p-6 space-y-4">
+          <h3 className="font-display text-xl font-semibold mb-4">Edit Profile</h3>
+          
+          <div className="space-y-2">
+            <Label>Company Name</Label>
+            <Input 
+              value={formData.company_name} 
+              onChange={(e) => setFormData({...formData, company_name: e.target.value})}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Location</Label>
+            <Input 
+              value={formData.location} 
+              onChange={(e) => setFormData({...formData, location: e.target.value})}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Sector</Label>
+            <Input 
+              value={formData.sector} 
+              onChange={(e) => setFormData({...formData, sector: e.target.value})}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Stage</Label>
+            <Input 
+              value={formData.stage} 
+              onChange={(e) => setFormData({...formData, stage: e.target.value})}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Bio</Label>
+            <Textarea 
+              value={formData.bio} 
+              onChange={(e) => setFormData({...formData, bio: e.target.value})}
+              className="min-h-[100px]"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button onClick={handleSave} className="flex-1">Save Changes</Button>
+            <Button variant="outline" onClick={() => setEditMode(false)}>Cancel</Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6" data-testid="founder-profile">
       <div className="flex flex-col md:flex-row gap-6">
@@ -66,7 +140,7 @@ export default function FounderProfile({
             </div>
 
             <div className="flex gap-3">
-              <Button onClick={onEditProfile} className="flex-1" data-testid="button-edit-profile">
+              <Button onClick={() => setEditMode(true)} className="flex-1" data-testid="button-edit-profile">
                 Edit Profile
               </Button>
               <Button variant="outline" onClick={onEditVideo} data-testid="button-edit-video">

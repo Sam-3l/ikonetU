@@ -379,7 +379,6 @@ function ProfilePage() {
   const { user, profile, refetch } = useAuth();
   const { toast } = useToast();
   const [showVideoUpload, setShowVideoUpload] = useState(false);
-  const [editMode, setEditMode] = useState(false);
 
   const { data: stats } = useQuery<Record<string, number>>({
     queryKey: ["/api/dashboard/stats"],
@@ -387,14 +386,13 @@ function ProfilePage() {
   });
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: Partial<FounderProfileType | InvestorProfileType>) => {
+    mutationFn: async (data: any) => {
       const endpoint = user?.role === "founder" ? "/api/founder/profile" : "/api/investor/profile";
       const res = await apiRequest("PUT", endpoint, data);
       return res.json();
     },
     onSuccess: () => {
       refetch();
-      setEditMode(false);
       toast({ title: "Profile updated!" });
     },
   });
@@ -426,6 +424,7 @@ function ProfilePage() {
               matches: stats?.activeMatches || 0,
               responseRate: 0,
             }}
+            onEditProfile={(data) => updateProfileMutation.mutate(data)}
             onEditVideo={() => setShowVideoUpload(true)}
           />
         )}
@@ -446,6 +445,7 @@ function ProfilePage() {
         sectors={investorProfile?.sectors || []}
         stages={investorProfile?.stages || []}
         supportTypes={investorProfile?.supportTypes || []}
+        onEditProfile={(data) => updateProfileMutation.mutate(data)}
       />
     </div>
   );
