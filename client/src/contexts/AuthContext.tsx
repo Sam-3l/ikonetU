@@ -7,34 +7,34 @@ interface User {
   email: string;
   name: string;
   role: "founder" | "investor" | "admin";
-  avatarUrl?: string;
-  onboardingComplete: boolean;
-  createdAt: string;
+  avatar_url?: string;
+  onboarding_complete: boolean;
+  created_at: string;
 }
 
 interface FounderProfile {
   id: string;
-  userId: string;
-  companyName: string;
+  user: string;
+  company_name: string;
   location?: string;
   bio?: string;
   sector?: string;
   stage?: string;
-  fundingGoal?: string;
+  funding_goal?: string;
   website?: string;
   linkedin?: string;
 }
 
 interface InvestorProfile {
   id: string;
-  userId: string;
-  firmName?: string;
+  user: string;
+  firm_name?: string;
   title?: string;
   thesis?: string;
   sectors?: string[];
   stages?: string[];
-  checkSize?: string;
-  supportTypes?: string[];
+  check_size?: string;
+  support_types?: string[];
   linkedin?: string;
 }
 

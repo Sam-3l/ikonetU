@@ -1,8 +1,10 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect as React_useEffect } from "react";
+import * as React from "react";
 import { Heart, Bookmark, X, Info, Volume2, VolumeX, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Flag } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,8 +24,9 @@ interface Founder {
   sector: string;
   stage: string;
   location: string;
-  videoUrl?: string;
+  videoUrl: string;
   videoPoster?: string;
+  videoId: string;
 }
 
 interface VideoFeedProps {
@@ -32,6 +35,7 @@ interface VideoFeedProps {
   onMaybe?: (founderId: string) => void;
   onPass?: (founderId: string) => void;
   onInfo?: (founderId: string) => void;
+  onReport?: (founderId: string, videoId: string) => void;
 }
 
 export default function VideoFeed({
@@ -40,6 +44,7 @@ export default function VideoFeed({
   onMaybe,
   onPass,
   onInfo,
+  onReport,
 }: VideoFeedProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
@@ -49,8 +54,31 @@ export default function VideoFeed({
 
   const currentFounder = founders[currentIndex];
 
+  // Auto-play when video changes
+  React.useEffect(() => {
+    if (videoRef.current && currentFounder?.videoUrl) {
+      videoRef.current.load();
+      const playPromise = videoRef.current.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+          })
+          .catch((error) => {
+            console.error("Auto-play failed:", error);
+            setIsPlaying(false);
+          });
+      }
+    }
+  }, [currentIndex, currentFounder?.videoUrl]);
+
   const advanceToNext = () => {
     if (currentIndex < founders.length - 1) {
+      // Pause current video before advancing
+      if (videoRef.current) {
+        videoRef.current.pause();
+      }
       setCurrentIndex((prev) => prev + 1);
       setIsPlaying(false);
     }
@@ -75,20 +103,26 @@ export default function VideoFeed({
     advanceToNext();
   };
 
-  const togglePlay = () => {
+  const togglePlay = (e?: React.MouseEvent) => {
+    e?.stopPropagation(); // Prevent event bubbling
+    
     if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
         setIsPlaying(false);
       } else {
-        videoRef.current.play()
-          .then(() => {
-            setIsPlaying(true);
-          })
-          .catch((err) => {
-            console.log("Video play error:", err);
-            setIsPlaying(false);
-          });
+        const playPromise = videoRef.current.play();
+        
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              setIsPlaying(true);
+            })
+            .catch((err) => {
+              console.error("Video play error:", err);
+              setIsPlaying(false);
+            });
+        }
       }
     }
   };
@@ -122,20 +156,36 @@ export default function VideoFeed({
       />
 
       <div
-        className="absolute inset-0 flex items-center justify-center cursor-pointer"
-        onClick={togglePlay}
+        className="absolute inset-0 flex items-center justify-center"
       >
         {currentFounder.videoUrl ? (
-          <video
-            ref={videoRef}
-            src={currentFounder.videoUrl}
-            poster={currentFounder.videoPoster}
-            className="w-full h-full object-cover"
-            muted={isMuted}
-            loop
-            playsInline
-            data-testid="video-player"
-          />
+          <>
+            <video
+              ref={videoRef}
+              src={currentFounder.videoUrl}
+              poster={currentFounder.videoPoster}
+              className="w-full h-full object-cover"
+              muted={isMuted}
+              loop
+              playsInline
+              preload="auto"
+              data-testid="video-player"
+              onError={(e) => {
+                console.error("Video load error:", e);
+                console.log("Failed URL:", currentFounder.videoUrl);
+              }}
+              onLoadedData={() => {
+                console.log("Video loaded successfully:", currentFounder.videoUrl);
+              }}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+            />
+            {/* Clickable overlay for play/pause */}
+            <div 
+              className="absolute inset-0 cursor-pointer z-[2]"
+              onClick={togglePlay}
+            />
+          </>
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
             <div className="text-white/60 text-center p-4">
@@ -145,7 +195,7 @@ export default function VideoFeed({
           </div>
         )}
         {!isPlaying && currentFounder.videoUrl && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none z-[3]">
             <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
               <Play className="w-10 h-10 text-white ml-1" />
             </div>
@@ -217,6 +267,16 @@ export default function VideoFeed({
           data-testid="button-info"
         >
           <Info className="h-7 w-7" />
+        </Button>
+        <div className="h-2" />
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-14 w-14 rounded-full bg-white/20 backdrop-blur-sm text-white/70 border-0 hover:text-white"
+          onClick={() => onReport?.(currentFounder.id, currentFounder.videoId)}
+          data-testid="button-report"
+        >
+          <Flag className="h-7 w-7" />
         </Button>
       </div>
 

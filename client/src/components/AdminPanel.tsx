@@ -1,492 +1,433 @@
 import { useState } from "react";
-import { Users, Video, AlertTriangle, Check, X, Eye } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Users,
+  Video as VideoIcon,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Trash2,
+  Play,
+  AlertCircle,
+} from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import ReportDialog from "@/components/ReportDialog";
 
-interface User {
+interface AdminStats {
+  totalUsers: number;
+  totalFounders: number;
+  totalInvestors: number;
+  totalVideos: number;
+  activeVideos: number;
+  pendingVideos: number;
+  pendingReports: number;
+}
+
+interface AdminUser {
   id: string;
   name: string;
   email: string;
-  avatar?: string;
   role: "founder" | "investor" | "admin";
-  joinDate: string;
-  status: "active" | "pending" | "suspended";
+  created_at: string;
+  onboarding_complete: boolean;
 }
 
-interface VideoItem {
+interface AdminVideo {
   id: string;
   title: string;
-  founderName: string;
-  companyName: string;
+  url: string;
+  thumbnail_url: string;
+  duration: number;
   status: "processing" | "active" | "rejected" | "archived";
-  createdAt: string;
-  thumbnailUrl?: string;
+  is_current: boolean;
+  view_count: number;
+  created_at: string;
+  founder: {
+    id: string;
+    name: string;
+    email: string;
+  };
 }
 
-interface ModerationItem {
-  id: string;
-  videoId: string;
-  reporterName: string;
-  founderName: string;
-  founderAvatar?: string;
-  reason: string;
-  reportedAt: string;
-}
+export default function AdminPanel() {
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("overview");
+  const [videoFilter, setVideoFilter] = useState<string>("all");
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [playingVideo, setPlayingVideo] = useState<AdminVideo | null>(null);
 
-interface AdminPanelProps {
-  totalUsers: number;
-  totalVideos: number;
-  pendingModeration: number;
-  pendingVideos: number;
-  users: User[];
-  videos: VideoItem[];
-  moderationQueue: ModerationItem[];
-  onApprove?: (id: string) => void;
-  onWarn?: (id: string) => void;
-  onReject?: (id: string) => void;
-  onSuspendUser?: (id: string) => void;
-  onApproveVideo?: (id: string) => void;
-  onRejectVideo?: (id: string) => void;
-}
+  // Fetch stats
+  const { data: stats } = useQuery<AdminStats>({
+    queryKey: ["/api/admin/stats/"],
+  });
 
-export default function AdminPanel({
-  totalUsers,
-  totalVideos,
-  pendingModeration,
-  pendingVideos,
-  users,
-  videos,
-  moderationQueue,
-  onApprove,
-  onWarn,
-  onReject,
-  onSuspendUser,
-  onApproveVideo,
-  onRejectVideo,
-}: AdminPanelProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"users" | "videos" | "moderation">("videos");
-  const [selectedModItem, setSelectedModItem] = useState<ModerationItem | null>(null);
+  // Fetch users
+  const { data: users, isLoading: usersLoading } = useQuery<AdminUser[]>({
+    queryKey: ["/api/admin/users/"],
+  });
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Fetch videos
+  const { data: videos, isLoading: videosLoading } = useQuery<AdminVideo[]>({
+    queryKey: ["/api/admin/videos/", videoFilter],
+    queryFn: async () => {
+      const url = videoFilter === "all" 
+        ? "/api/admin/videos/"
+        : `/api/admin/videos/?status=${videoFilter}`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
+
+  // Approve video
+  const approveMutation = useMutation({
+    mutationFn: async (videoId: string) => {
+      const res = await apiRequest("PUT", `/api/admin/videos/${videoId}/approve/`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/videos/"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats/"] });
+      toast({ title: "Video approved!" });
+    },
+  });
+
+  // Reject video
+  const rejectMutation = useMutation({
+    mutationFn: async (videoId: string) => {
+      const res = await apiRequest("PUT", `/api/admin/videos/${videoId}/reject/`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/videos/"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats/"] });
+      toast({ title: "Video rejected" });
+    },
+  });
+
+  // Delete user
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/users/${userId}/delete/`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users/"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats/"] });
+      toast({ title: "User deactivated" });
+      setUserToDelete(null);
+    },
+  });
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "active":
+        return <Badge className="bg-green-500"><CheckCircle2 className="h-3 w-3 mr-1" />Active</Badge>;
+      case "processing":
+        return <Badge className="bg-yellow-500"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+      case "rejected":
+        return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  const getRoleBadge = (role: string) => {
+    switch (role) {
+      case "founder":
+        return <Badge variant="default">Founder</Badge>;
+      case "investor":
+        return <Badge variant="secondary">Investor</Badge>;
+      case "admin":
+        return <Badge className="bg-purple-500">Admin</Badge>;
+      default:
+        return <Badge variant="outline">{role}</Badge>;
+    }
+  };
 
   return (
-    <div className="space-y-6" data-testid="admin-panel">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="overflow-visible">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Users className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-display font-bold">{totalUsers.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">Total Users</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="overflow-visible">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-lg bg-chart-2/10 flex items-center justify-center">
-              <Video className="h-6 w-6 text-chart-2" />
-            </div>
-            <div>
-              <p className="text-2xl font-display font-bold">{totalVideos.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">Active Videos</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="overflow-visible">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-lg bg-destructive/10 flex items-center justify-center">
-              <AlertTriangle className="h-6 w-6 text-destructive" />
-            </div>
-            <div>
-              <p className="text-2xl font-display font-bold">{pendingModeration}</p>
-              <p className="text-sm text-muted-foreground">Pending Review</p>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="space-y-6">
+      <div>
+        <p className="text-muted-foreground">Manage users, videos, and platform activity</p>
       </div>
 
-      <div className="flex gap-2 border-b border-border flex-wrap">
-        <button
-          onClick={() => setActiveTab("videos")}
-          className={`px-4 py-2 font-medium text-sm border-b-2 -mb-px transition-colors ${
-            activeTab === "videos"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground"
-          }`}
-          data-testid="tab-videos"
-        >
-          Video Approval
-          {pendingVideos > 0 && (
-            <Badge variant="secondary" className="ml-2 h-5 min-w-[20px] rounded-full">
-              {pendingVideos}
-            </Badge>
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab("users")}
-          className={`px-4 py-2 font-medium text-sm border-b-2 -mb-px transition-colors ${
-            activeTab === "users"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground"
-          }`}
-          data-testid="tab-users"
-        >
-          User Management
-        </button>
-        <button
-          onClick={() => setActiveTab("moderation")}
-          className={`px-4 py-2 font-medium text-sm border-b-2 -mb-px transition-colors ${
-            activeTab === "moderation"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground"
-          }`}
-          data-testid="tab-moderation"
-        >
-          Moderation Queue
-          {pendingModeration > 0 && (
-            <Badge variant="destructive" className="ml-2 h-5 min-w-[20px] rounded-full">
-              {pendingModeration}
-            </Badge>
-          )}
-        </button>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="videos">
+            Videos
+            {stats && stats.pendingVideos > 0 && (
+              <span className="ml-2 px-2 py-0.5 text-xs bg-yellow-500 text-white rounded-full">
+                {stats.pendingVideos}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="reports">
+            Reports
+            {stats && stats.pendingReports > 0 && (
+              <span className="ml-2 px-2 py-0.5 text-xs bg-red-500 text-white rounded-full">
+                {stats.pendingReports}
+              </span>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-      {activeTab === "videos" && (
-        <Card className="overflow-visible">
-          <CardHeader>
-            <CardTitle className="text-base">All Videos</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Video</TableHead>
-                  <TableHead>Founder</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Uploaded</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {videos.map((video) => (
-                  <TableRow key={video.id} data-testid={`video-row-${video.id}`}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-16 rounded bg-muted flex items-center justify-center">
-                          <Video className="h-4 w-4 text-muted-foreground" />
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Users</p>
+                    <p className="text-3xl font-bold">{stats?.totalUsers || 0}</p>
+                  </div>
+                  <Users className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {stats?.totalFounders} founders • {stats?.totalInvestors} investors
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Videos</p>
+                    <p className="text-3xl font-bold">{stats?.totalVideos || 0}</p>
+                  </div>
+                  <VideoIcon className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {stats?.activeVideos} active
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Pending Review</p>
+                    <p className="text-3xl font-bold text-yellow-500">{stats?.pendingVideos || 0}</p>
+                  </div>
+                  <Clock className="h-8 w-8 text-yellow-500" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Videos awaiting approval
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Reports</p>
+                    <p className="text-3xl font-bold">{stats?.pendingReports || 0}</p>
+                  </div>
+                  <AlertCircle className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Pending moderation
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Videos Tab */}
+        <TabsContent value="videos" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Video Moderation</h2>
+            <Select value={videoFilter} onValueChange={setVideoFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Videos</SelectItem>
+                <SelectItem value="processing">Pending</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {videosLoading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : !videos || videos.length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center text-muted-foreground">
+                No videos found
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {videos.map((video) => (
+                <Card key={video.id}>
+                  <CardContent className="p-0">
+                    {/* Video Player */}
+                    <div className="relative bg-black aspect-video">
+                      <video
+                        src={video.url}
+                        poster={video.thumbnail_url || undefined}
+                        controls
+                        controlsList="nodownload"
+                        className="w-full h-full"
+                        preload="metadata"
+                      />
+                    </div>
+
+                    {/* Video Info */}
+                    <div className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold truncate">{video.title}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            by {video.founder.name} • {video.duration}s
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(video.created_at).toLocaleString()}
+                          </p>
                         </div>
-                        <span className="font-medium text-sm truncate max-w-[150px]">{video.title || "Untitled"}</span>
+                        {getStatusBadge(video.status)}
                       </div>
-                    </TableCell>
-                    <TableCell className="text-sm">{video.founderName}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{video.companyName}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          video.status === "active"
-                            ? "default"
-                            : video.status === "processing"
-                            ? "secondary"
-                            : video.status === "rejected"
-                            ? "destructive"
-                            : "outline"
-                        }
-                        className="capitalize"
-                      >
-                        {video.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {video.createdAt}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        {video.status === "processing" && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="default"
-                              onClick={() => onApproveVideo?.(video.id)}
-                              data-testid={`button-approve-video-${video.id}`}
-                            >
-                              <Check className="h-4 w-4 mr-1" /> Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => onRejectVideo?.(video.id)}
-                              data-testid={`button-reject-video-${video.id}`}
-                            >
-                              <X className="h-4 w-4 mr-1" /> Reject
-                            </Button>
-                          </>
-                        )}
-                        {video.status === "active" && (
+
+                      {/* Actions */}
+                      {video.status === "processing" && (
+                        <div className="flex gap-2">
                           <Button
                             size="sm"
-                            variant="outline"
-                            onClick={() => onRejectVideo?.(video.id)}
-                            data-testid={`button-archive-video-${video.id}`}
+                            className="flex-1 bg-green-500 hover:bg-green-600"
+                            onClick={() => approveMutation.mutate(video.id)}
+                            disabled={approveMutation.isPending}
                           >
-                            Archive
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Approve
                           </Button>
-                        )}
-                        {video.status === "rejected" && (
                           <Button
                             size="sm"
-                            variant="outline"
-                            onClick={() => onApproveVideo?.(video.id)}
-                            data-testid={`button-reactivate-video-${video.id}`}
+                            variant="destructive"
+                            className="flex-1"
+                            onClick={() => rejectMutation.mutate(video.id)}
+                            disabled={rejectMutation.isPending}
                           >
-                            Reactivate
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Reject
                           </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {videos.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                      No videos found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-
-      {activeTab === "users" && (
-        <Card className="overflow-visible">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <CardTitle className="text-base">All Users</CardTitle>
-              <Input
-                placeholder="Search users..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-64"
-                data-testid="input-search-users"
-              />
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.id} data-testid={`user-row-${user.id}`}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={user.avatar} />
-                          <AvatarFallback className="text-xs">
-                            {user.name.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium text-sm">{user.name}</p>
-                          <p className="text-xs text-muted-foreground">{user.email}</p>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {user.joinDate}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          user.status === "active"
-                            ? "default"
-                            : user.status === "pending"
-                            ? "secondary"
-                            : "destructive"
-                        }
-                        className="capitalize"
-                      >
-                        {user.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => onSuspendUser?.(user.id)}
-                      >
-                        Suspend
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-
-      {activeTab === "moderation" && (
-        <Card className="overflow-visible">
-          <CardHeader>
-            <CardTitle className="text-base">Reported Content</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Founder</TableHead>
-                  <TableHead>Reporter</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>Reported</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {moderationQueue.map((item) => (
-                  <TableRow key={item.id} data-testid={`mod-row-${item.id}`}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={item.founderAvatar} />
-                          <AvatarFallback className="text-xs">
-                            {item.founderName.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium text-sm">{item.founderName}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm">{item.reporterName}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
-                      {item.reason}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {item.reportedAt}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => setSelectedModItem(item)}
-                          data-testid={`button-view-${item.id}`}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="text-status-online"
-                          onClick={() => onApprove?.(item.id)}
-                          data-testid={`button-approve-${item.id}`}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="text-destructive"
-                          onClick={() => onReject?.(item.id)}
-                          data-testid={`button-reject-${item.id}`}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-
-      <Dialog open={!!selectedModItem} onOpenChange={() => setSelectedModItem(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Review Reported Content</DialogTitle>
-          </DialogHeader>
-          {selectedModItem && (
-            <div className="space-y-4">
-              <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-                <Video className="h-12 w-12 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm font-medium mb-1">Reported by</p>
-                <p className="text-muted-foreground">{selectedModItem.reporterName}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium mb-1">Reason</p>
-                <p className="text-muted-foreground">{selectedModItem.reason}</p>
-              </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setSelectedModItem(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                onWarn?.(selectedModItem!.id);
-                setSelectedModItem(null);
-              }}
+        </TabsContent>
+
+        {/* Users Tab */}
+        <TabsContent value="users" className="space-y-6">
+          <h2 className="text-xl font-semibold">User Management</h2>
+
+          {usersLoading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="border-b">
+                      <tr className="text-left">
+                        <th className="p-4 font-medium">Name</th>
+                        <th className="p-4 font-medium">Email</th>
+                        <th className="p-4 font-medium">Role</th>
+                        <th className="p-4 font-medium">Joined</th>
+                        <th className="p-4 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users?.map((user) => (
+                        <tr key={user.id} className="border-b last:border-0 hover:bg-muted/50">
+                          <td className="p-4 font-medium">{user.name}</td>
+                          <td className="p-4 text-sm text-muted-foreground">{user.email}</td>
+                          <td className="p-4">{getRoleBadge(user.role)}</td>
+                          <td className="p-4 text-sm text-muted-foreground">
+                            {new Date(user.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="p-4">
+                            {user.role !== "admin" && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setUserToDelete(user.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="reports" className="space-y-6">
+          {/* Reports management UI - similar structure to videos tab */}
+        </TabsContent>
+      </Tabs>
+
+      {/* Delete User Confirmation */}
+      <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate User?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will deactivate the user's account. They will no longer be able to log in.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => userToDelete && deleteUserMutation.mutate(userToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Issue Warning
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                onReject?.(selectedModItem!.id);
-                setSelectedModItem(null);
-              }}
-            >
-              Reject Video
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

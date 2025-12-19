@@ -85,7 +85,17 @@ export default function VideoUpload({
     video.preload = "metadata";
     
     video.onloadedmetadata = () => {
-      const duration = Math.floor(video.duration);
+      const duration = video.duration;
+      if (!isFinite(duration) || isNaN(duration)) {
+        toast({
+          title: "Invalid video",
+          description: "Could not read video duration. Please try another file.",
+          variant: "destructive"
+        });
+        URL.revokeObjectURL(url);
+        return;
+      }
+      
       setVideoDuration(duration);
       setTrimStart(0);
       setTrimEnd(Math.min(duration, maxDuration));
@@ -113,7 +123,6 @@ export default function VideoUpload({
       setRecordingTime(0);
       autoStopTriggeredRef.current = false;
       
-      // Wait a bit for the component to render
       setTimeout(() => {
         if (cameraVideoRef.current && streamRef.current) {
           cameraVideoRef.current.srcObject = streamRef.current;
@@ -159,7 +168,16 @@ export default function VideoUpload({
         video.preload = "metadata";
         
         video.onloadedmetadata = () => {
-          const duration = Math.floor(video.duration);
+          const duration = video.duration;
+          if (!isFinite(duration) || isNaN(duration)) {
+            toast({
+              title: "Invalid recording",
+              description: "Could not read video duration. Please try recording again.",
+              variant: "destructive"
+            });
+            return;
+          }
+          
           setVideoFile(file);
           setVideoURL(url);
           setVideoDuration(duration);
@@ -255,14 +273,19 @@ export default function VideoUpload({
 
     setIsUploading(true);
 
-    const formData = new FormData();
-    formData.append("video_file", videoFile);
-    formData.append("title", title || "My Pitch Video");
-    formData.append("trim_start", trimStart.toString());
-    formData.append("trim_end", trimEnd.toString());
-    formData.append("duration", trimmedDuration.toString());
-
     try {
+      const formData = new FormData();
+      formData.append("video_file", videoFile);
+      formData.append("title", title || "My Pitch Video");
+      formData.append("duration", trimmedDuration.toFixed(2));
+      
+      // Send trim timestamps to backend for server-side processing
+      const needsTrimming = trimStart > 0.1 || Math.abs(trimEnd - videoDuration) > 0.1;
+      if (needsTrimming) {
+        formData.append("trim_start", trimStart.toFixed(2));
+        formData.append("trim_end", trimEnd.toFixed(2));
+      }
+
       const res = await fetch("/api/videos/", {
         method: "POST",
         body: formData,
@@ -397,7 +420,6 @@ export default function VideoUpload({
   if (step === "recording") {
     return (
       <div className="fixed inset-0 z-50 bg-black">
-        {/* Camera Preview - Full Screen Behind Everything */}
         <video
           ref={cameraVideoRef}
           autoPlay
@@ -407,7 +429,6 @@ export default function VideoUpload({
           style={{ transform: 'scaleX(-1)' }}
         />
         
-        {/* Recording Timer - Only show when actually recording */}
         {isRecording && (
           <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-full flex items-center gap-2 font-mono z-10">
             <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
@@ -415,7 +436,6 @@ export default function VideoUpload({
           </div>
         )}
 
-        {/* Close Button */}
         <button
           onClick={() => {
             if (isRecording) {
@@ -430,10 +450,8 @@ export default function VideoUpload({
           <X className="w-6 h-6 text-white" />
         </button>
 
-        {/* Record Button - Bottom Center */}
         <div className="absolute bottom-0 left-0 right-0 p-8 flex justify-center items-center z-10">
           {!isRecording ? (
-            // Preview mode - tap to start recording
             <button
               onClick={beginRecording}
               className="relative group"
@@ -443,7 +461,6 @@ export default function VideoUpload({
               </div>
             </button>
           ) : (
-            // Recording mode - tap to stop
             <button
               onClick={stopRecording}
               className="relative group"
@@ -484,6 +501,7 @@ export default function VideoUpload({
   if (step === "trim") {
     const trimmedDuration = trimEnd - trimStart;
     const isValidDuration = trimmedDuration <= maxDuration;
+    const needsTrimming = trimStart > 0.1 || Math.abs(trimEnd - videoDuration) > 0.1;
 
     return (
       <div className="space-y-6">
@@ -506,7 +524,13 @@ export default function VideoUpload({
               </Button>
             </div>
 
-            {/* Video Preview */}
+            {needsTrimming && (
+              <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg text-sm text-blue-700 dark:text-blue-300">
+                <Video className="h-4 w-4" />
+                <span>Your video will be processed to the selected length</span>
+              </div>
+            )}
+
             <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
               <video
                 ref={videoPreviewRef}
@@ -529,7 +553,6 @@ export default function VideoUpload({
               </button>
             </div>
 
-            {/* Trim Controls */}
             <div className="space-y-4 p-4 bg-muted rounded-lg">
               <div className="flex items-center justify-between text-sm">
                 <span className="font-medium">Trim Video</span>
@@ -538,7 +561,6 @@ export default function VideoUpload({
                 </span>
               </div>
 
-              {/* Simple Range Sliders for Trim */}
               <div className="space-y-3">
                 <div className="space-y-2">
                   <Label className="text-xs">Start Time</Label>
@@ -579,7 +601,6 @@ export default function VideoUpload({
                 </div>
               </div>
 
-              {/* Visual Timeline */}
               <div className="relative h-12 bg-background rounded overflow-hidden mt-4">
                 <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
                   Selected: {trimmedDuration.toFixed(1)}s
@@ -588,15 +609,15 @@ export default function VideoUpload({
                 <div 
                   className="absolute top-0 bottom-0 bg-primary/30 border-x-2 border-primary"
                   style={{
-                    left: `${(trimStart / videoDuration) * 100}%`,
-                    right: `${100 - (trimEnd / videoDuration) * 100}%`
+                    left: videoDuration > 0 ? `${(trimStart / videoDuration) * 100}%` : '0%',
+                    right: videoDuration > 0 ? `${100 - (trimEnd / videoDuration) * 100}%` : '0%'
                   }}
                 />
 
                 <div
                   className="absolute top-0 bottom-0 w-0.5 bg-white z-10"
                   style={{
-                    left: `${(currentTime / videoDuration) * 100}%`
+                    left: videoDuration > 0 ? `${(currentTime / videoDuration) * 100}%` : '0%'
                   }}
                 />
               </div>
@@ -608,7 +629,6 @@ export default function VideoUpload({
               )}
             </div>
 
-            {/* Title Input */}
             <div className="space-y-2">
               <Label htmlFor="title">Title or Caption (Optional)</Label>
               <Input
@@ -625,7 +645,6 @@ export default function VideoUpload({
           </CardContent>
         </Card>
 
-        {/* Action Buttons */}
         <div className="flex gap-3">
           {onCancel && (
             <Button variant="outline" onClick={onCancel} className="flex-1">

@@ -23,6 +23,8 @@ import VideoUpload from "@/components/VideoUpload";
 import PreferenceChips from "@/components/PreferenceChips";
 import LegalAcceptance from "@/components/LegalAcceptance";
 import AdminPanel from "@/components/AdminPanel";
+import VideoHistory from "@/components/VideoHistory";
+import ReportDialog from "@/components/ReportDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -52,9 +54,11 @@ function DiscoverPage() {
   const { toast } = useToast();
   const [showMatch, setShowMatch] = useState(false);
   const [matchedFounder, setMatchedFounder] = useState<{ name: string; company: string } | null>(null);
+  const [showReport, setShowReport] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ videoId: string; founderId: string; name: string } | null>(null);
 
   const { data: videos, isLoading } = useQuery<VideoWithFounder[]>({
-    queryKey: ["/api/videos/feed"],
+    queryKey: ["/api/videos/feed/"],
   });
 
   const signalMutation = useMutation({
@@ -80,18 +84,20 @@ function DiscoverPage() {
     },
   });
 
-  const founders = videos?.map(video => ({
-    id: video.founderId,
-    name: video.founder.user?.name || "Unknown",
-    avatar: video.founder.user?.avatarUrl || undefined,
-    company: video.founder.profile?.companyName || "Unknown Company",
-    sector: video.founder.profile?.sector || "Tech",
-    stage: video.founder.profile?.stage || "Seed",
-    location: video.founder.profile?.location || "Unknown",
-    videoUrl: video.url,
-    videoPoster: video.thumbnailUrl || undefined,
-    videoId: video.id,
-  })) || [];
+  const founders = videos?.map(video => {
+    return {
+      id: video.founder_id,
+      name: video.founder?.user?.name || "Unknown",
+      avatar: video.founder?.user?.avatar_url || undefined,
+      company: video.founder?.profile?.company_name || "Unknown Company",
+      sector: video.founder?.profile?.sector || "Tech",
+      stage: video.founder?.profile?.stage || "Seed",
+      location: video.founder?.profile?.location || "Unknown",
+      videoUrl: video.url,
+      videoPoster: video.thumbnail_url || undefined,
+      videoId: video.id,
+    };
+  }) || [];
 
   if (isLoading) {
     return (
@@ -126,6 +132,15 @@ function DiscoverPage() {
             signalMutation.mutate({ founderId, videoId: video.id, type: "pass" });
           }
         }}
+        onReport={(founderId, videoId) => {
+          const founder = founders.find(f => f.id === founderId);
+          setReportTarget({
+            videoId,
+            founderId,
+            name: founder?.company || "this founder"
+          });
+          setShowReport(true);
+        }}
       />
       <MatchModal
         isOpen={showMatch}
@@ -136,6 +151,15 @@ function DiscoverPage() {
         }}
         founder={matchedFounder || { name: "", company: "" }}
         investor={{ name: user?.name || "", firm: "Investor" }}
+      />
+      <ReportDialog
+        isOpen={showReport}
+        onClose={() => {
+          setShowReport(false);
+          setReportTarget(null);
+        }}
+        videoId={reportTarget?.videoId}
+        targetName={reportTarget?.name}
       />
     </div>
   );
@@ -379,6 +403,7 @@ function ProfilePage() {
   const { user, profile, refetch } = useAuth();
   const { toast } = useToast();
   const [showVideoUpload, setShowVideoUpload] = useState(false);
+  const [, setLocation] = useLocation();
 
   const { data: stats } = useQuery<Record<string, number>>({
     queryKey: ["/api/dashboard/stats"],
@@ -398,10 +423,16 @@ function ProfilePage() {
   });
 
   if (user?.role === "founder") {
-    const founderProfile = profile as FounderProfileType | null;
+    const founderProfile = profile as FounderProfile | null;
     return (
-      <div className="p-4 md:p-8 pb-20 md:pb-8">
-        <h1 className="font-display text-2xl font-bold mb-6">Your Profile</h1>
+      <div className="p-4 md:p-8 pb-20 md:pb-8 space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="font-display text-2xl font-bold">Your Profile</h1>
+          <Button variant="outline" onClick={() => setLocation("/videos")}>
+            View All Videos
+          </Button>
+        </div>
+        
         {showVideoUpload ? (
           <Card className="max-w-xl overflow-visible">
             <CardHeader>
@@ -414,7 +445,7 @@ function ProfilePage() {
         ) : (
           <FounderProfile
             name={user?.name || ""}
-            company={founderProfile?.companyName || ""}
+            company={founderProfile?.company_name || ""}
             location={founderProfile?.location || ""}
             bio={founderProfile?.bio || ""}
             sector={founderProfile?.sector || ""}
@@ -438,7 +469,7 @@ function ProfilePage() {
       <h1 className="font-display text-2xl font-bold mb-6">Your Profile</h1>
       <InvestorProfile
         name={user?.name || ""}
-        firm={investorProfile?.firmName || ""}
+        firm={investorProfile?.firm_name || ""}
         role={investorProfile?.title || ""}
         location=""
         thesis={investorProfile?.thesis || ""}
@@ -495,11 +526,17 @@ function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
   const handleNext = async () => {
     if (step < totalSteps) {
       if (step === 1 && role === "founder") {
-        await updateProfileMutation.mutateAsync({ companyName, location, bio });
+        await updateProfileMutation.mutateAsync({ 
+          company_name: companyName,
+          location, 
+          bio 
+        });
       } else if (step === 1 && role === "investor") {
         await updateProfileMutation.mutateAsync({ sectors, stages });
       } else if (step === 2 && role === "investor") {
-        await updateProfileMutation.mutateAsync({ supportTypes: support });
+        await updateProfileMutation.mutateAsync({ 
+          support_types: support
+        });
       }
       setStep(step + 1);
     } else {
@@ -720,7 +757,14 @@ function MainApp() {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (user && !user.onboardingComplete) {
+    if (user && user.onboarding_complete && user.role === "admin") {
+      setLocation("/admin");
+      setActiveTab("admin");
+    }
+  }, [user, setLocation]);
+
+  useEffect(() => {
+    if (user && !user.onboarding_complete) {
       setShowOnboarding(true);
     } else {
       setShowOnboarding(false);
@@ -793,6 +837,12 @@ function MainApp() {
           <Route path="/matches" component={MatchesPage} />
           <Route path="/dashboard" component={DashboardPage} />
           <Route path="/profile" component={ProfilePage} />
+          <Route path="/videos" component={() => (
+            <div className="p-4 md:p-8 pb-20 md:pb-8">
+              <h1 className="font-display text-2xl font-bold mb-6">My Videos</h1>
+              <VideoHistory />
+            </div>
+          )} />
           <Route path="/admin">
             {user?.role === "admin" ? <AdminPage /> : <Redirect to="/" />}
           </Route>
