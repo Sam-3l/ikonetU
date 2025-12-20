@@ -13,11 +13,6 @@ interface VideoUploadProps {
   onCancel?: () => void;
 }
 
-// Helper to get auth token from localStorage
-function getAuthToken(): string | null {
-  return localStorage.getItem('token');
-}
-
 export default function VideoUpload({
   maxDuration = 60,
   onSuccess,
@@ -65,7 +60,6 @@ export default function VideoUpload({
     return cleanup;
   }, []);
 
-  // Handle fullscreen for recording - hide mobile bottom nav
   useEffect(() => {
     if (step === "recording") {
       document.body.classList.add("recording-fullscreen");
@@ -300,79 +294,41 @@ export default function VideoUpload({
       formData.append("title", title || "My Pitch Video");
       formData.append("duration", trimmedDuration.toFixed(2));
       
-      // Send trim timestamps
       const needsTrimming = trimStart > 0.1 || Math.abs(trimEnd - videoDuration) > 0.1;
       if (needsTrimming) {
         formData.append("trim_start", trimStart.toFixed(2));
         formData.append("trim_end", trimEnd.toFixed(2));
       }
 
-      // Get auth token
-      const token = getAuthToken();
-
+      const token = localStorage.getItem('auth_token');
+      
       if (!token) {
         throw new Error("Not authenticated. Please log in again.");
       }
 
-      const headers: Record<string, string> = {
-        'Authorization': `Token ${token}`,
-      };
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
-
       const res = await fetch("/api/videos/", {
         method: "POST",
         body: formData,
-        headers: headers,
-        signal: controller.signal,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       });
-
-      clearTimeout(timeoutId);      
-
-      // Check if response is empty
-      const contentLength = res.headers.get("content-length");
-      if (contentLength === "0") {
-        console.error("❌ EMPTY RESPONSE - Backend returned 0 bytes");
-        console.error("This usually means:");
-        console.error("1. CORS preflight passed but POST was blocked");
-        console.error("2. Middleware intercepted the request");
-        console.error("3. Django view returned but response was stripped");
-        throw new Error("Server returned empty response. Check backend logs.");
-      }
 
       if (!res.ok) {
         let errorMessage = "Upload failed";
-        const contentType = res.headers.get("content-type");
-        
         try {
-          if (contentType && contentType.includes("application/json")) {
-            const error = await res.json();
-            errorMessage = error.message || error.detail || JSON.stringify(error);
-          } else {
-            const text = await res.text();
-            console.error("Error response text:", text);
-            errorMessage = text || `Server error: ${res.status}`;
-          }
+          const error = await res.json();
+          errorMessage = error.message || error.detail || JSON.stringify(error);
         } catch (e) {
-          console.error("Error parsing response:", e);
-          errorMessage = `Server error: ${res.status} ${res.statusText}`;
+          const text = await res.text();
+          errorMessage = text || `Server error: ${res.status}`;
         }
-        
         throw new Error(errorMessage);
       }
 
-      // Parse successful response
-      let responseData;
       const contentType = res.headers.get("content-type");
-      
       if (contentType && contentType.includes("application/json")) {
-        responseData = await res.json();
-      } else {
-        const text = await res.text();
-        if (text) {
-          console.warn("Warning: Expected JSON response but got text");
-        }
+        await res.json();
       }
 
       toast({
@@ -387,21 +343,9 @@ export default function VideoUpload({
       }, 100);
       
     } catch (error: any) {
-      console.error("❌ UPLOAD ERROR:", error);
-      console.error("Error name:", error.name);
-      console.error("Error message:", error.message);
-      
-      let errorMessage = "An unexpected error occurred";
-      
-      if (error.name === 'AbortError') {
-        errorMessage = "Upload timed out. Please try again with a smaller file.";
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
       toast({
         title: "Upload failed",
-        description: errorMessage,
+        description: error.message || "An unexpected error occurred",
         variant: "destructive"
       });
       setIsUploading(false);
@@ -422,12 +366,10 @@ export default function VideoUpload({
     setIsPlaying(false);
   };
 
-  // Recording Progress Circle
   const recordingProgress = (recordingTime / maxDuration) * 100;
   const circumference = 2 * Math.PI * 36;
   const strokeDashoffset = circumference - (recordingProgress / 100) * circumference;
 
-  // SELECT/UPLOAD STEP
   if (step === "select") {
     return (
       <div className="space-y-6">
@@ -510,7 +452,6 @@ export default function VideoUpload({
     );
   }
 
-  // RECORDING STEP - FULL FULLSCREEN WITH MAXIMUM Z-INDEX
   if (step === "recording") {
     return (
       <div className="fixed inset-0 bg-black" style={{ zIndex: 9999 }}>
@@ -592,7 +533,6 @@ export default function VideoUpload({
     );
   }
 
-  // TRIM/PREVIEW STEP
   if (step === "trim") {
     const trimmedDuration = trimEnd - trimStart;
     const isValidDuration = trimmedDuration <= maxDuration;
