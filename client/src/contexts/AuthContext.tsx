@@ -80,16 +80,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest("POST", "/api/auth/login", { email, password });
       const data = await res.json();
       
-      // Store token in localStorage
+      console.log('Login response:', data); // DEBUG
+      
+      // Store token in localStorage FIRST
       if (data.token) {
         localStorage.setItem('auth_token', data.token);
+        console.log('Token stored:', data.token); // DEBUG
       }
       
       return data;
     },
     onSuccess: (data) => {
+      console.log('Login success, refetching...'); // DEBUG
       setUser(data.user);
+      // Force refetch /me with the new token
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      refetch();
     },
   });
 
@@ -98,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest("POST", "/api/auth/register", data);
       const responseData = await res.json();
       
-      // Store token in localStorage
+      // Store token in localStorage FIRST
       if (responseData.token) {
         localStorage.setItem('auth_token', responseData.token);
       }
@@ -108,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: (data) => {
       setUser(data.user);
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      refetch();
     },
   });
 

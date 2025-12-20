@@ -22,7 +22,6 @@ export async function apiRequest(
       ...(token && { "Authorization": `Bearer ${token}` }), // ADD TOKEN TO HEADERS
     },
     body: data ? JSON.stringify(data) : undefined,
-    // REMOVED credentials: "include" - not needed for tokens
   });
   
   if (!res.ok) {
