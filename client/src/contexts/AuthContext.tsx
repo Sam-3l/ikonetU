@@ -59,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const { data, isLoading, refetch } = useQuery<{ user: AuthUser; profile: FounderProfile | InvestorProfile | null }>({
     queryKey: ["/api/auth/me"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
     retry: false,
     staleTime: Infinity,
   });
