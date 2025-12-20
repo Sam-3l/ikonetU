@@ -286,3 +286,9 @@
     inset: -1px;
   }
 }
+
+body.recording-fullscreen nav,
+body.recording-fullscreen [data-navbar],
+body.recording-fullscreen .bottom-nav {
+  display: none !important;
+}

@@ -60,6 +60,24 @@ export default function VideoUpload({
     return cleanup;
   }, []);
 
+  // Handle fullscreen for recording - hide mobile bottom nav
+  useEffect(() => {
+    if (step === "recording") {
+      // Add class to body to signal fullscreen recording mode
+      document.body.classList.add("recording-fullscreen");
+      // Also try to hide address bars on mobile
+      if (window.innerHeight < window.outerHeight) {
+        window.scrollTo(0, 1);
+      }
+    } else {
+      document.body.classList.remove("recording-fullscreen");
+    }
+
+    return () => {
+      document.body.classList.remove("recording-fullscreen");
+    };
+  }, [step]);
+
   const handleFileChange = (file: File) => {
     if (!file.type.startsWith("video/")) {
       toast({
@@ -286,30 +304,66 @@ export default function VideoUpload({
         formData.append("trim_end", trimEnd.toFixed(2));
       }
 
+      console.log("Starting upload to /api/videos/");
+      console.log("File size:", videoFile.size, "bytes");
+      console.log("Duration:", trimmedDuration.toFixed(2), "seconds");
+
       const res = await fetch("/api/videos/", {
         method: "POST",
         body: formData,
         credentials: "include",
+        // Explicitly set headers for better compatibility
+        headers: {
+          'Accept': 'application/json',
+        },
       });
       
+      console.log("Response status:", res.status);
+      console.log("Response headers:", Object.fromEntries(res.headers.entries()));
+
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Upload failed");
+        let errorMessage = "Upload failed";
+        try {
+          const error = await res.json();
+          errorMessage = error.message || error.detail || errorMessage;
+        } catch (e) {
+          const text = await res.text();
+          console.error("Response text:", text);
+          errorMessage = text || `Server error: ${res.status}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Parse response
+      let responseData;
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        responseData = await res.json();
+        console.log("Upload response:", responseData);
+      } else {
+        const text = await res.text();
+        console.log("Non-JSON response:", text);
       }
 
       toast({
         title: "Video submitted!",
         description: "Your pitch video is being processed."
       });
+      
       cleanup();
-      onSuccess?.();
+      
+      // Small delay to ensure everything is cleaned up
+      setTimeout(() => {
+        onSuccess?.();
+      }, 100);
+      
     } catch (error: any) {
+      console.error("Upload error:", error);
       toast({
         title: "Upload failed",
-        description: error.message,
+        description: error.message || "An unexpected error occurred",
         variant: "destructive"
       });
-    } finally {
       setIsUploading(false);
     }
   };
@@ -416,10 +470,10 @@ export default function VideoUpload({
     );
   }
 
-  // RECORDING STEP
+  // RECORDING STEP - FULL FULLSCREEN WITH MAXIMUM Z-INDEX
   if (step === "recording") {
     return (
-      <div className="fixed inset-0 z-50 bg-black">
+      <div className="fixed inset-0 bg-black" style={{ zIndex: 9999 }}>
         <video
           ref={cameraVideoRef}
           autoPlay
@@ -430,7 +484,7 @@ export default function VideoUpload({
         />
         
         {isRecording && (
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-full flex items-center gap-2 font-mono z-10">
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-full flex items-center gap-2 font-mono" style={{ zIndex: 10000 }}>
             <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
             {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
           </div>
@@ -445,12 +499,13 @@ export default function VideoUpload({
               setStep("select");
             }
           }}
-          className="absolute top-6 right-6 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors z-10"
+          className="absolute top-6 right-6 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center transition-colors"
+          style={{ zIndex: 10000 }}
         >
           <X className="w-6 h-6 text-white" />
         </button>
 
-        <div className="absolute bottom-0 left-0 right-0 p-8 flex justify-center items-center z-10">
+        <div className="absolute bottom-0 left-0 right-0 p-8 flex justify-center items-center" style={{ zIndex: 10000, paddingBottom: '6rem' }}>
           {!isRecording ? (
             <button
               onClick={beginRecording}
