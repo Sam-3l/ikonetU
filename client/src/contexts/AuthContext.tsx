@@ -57,14 +57,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [profile, setProfile] = useState<FounderProfile | InvestorProfile | null>(null);
 
+  // Fetch current user data if token exists
   const { data, isLoading, refetch } = useQuery<{ user: AuthUser; profile: FounderProfile | InvestorProfile | null }>({
     queryKey: ["/api/auth/me"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     retry: false,
     staleTime: Infinity,
-    enabled: !!localStorage.getItem('auth_token'), // Only fetch if token exists
+    enabled: !!localStorage.getItem('auth_token'),
   });
 
+  // Sync user and profile state with query data
   useEffect(() => {
     if (data) {
       setUser(data.user);
@@ -80,20 +82,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest("POST", "/api/auth/login", { email, password });
       const data = await res.json();
       
-      console.log('Login response:', data); // DEBUG
-      
-      // Store token in localStorage FIRST
       if (data.token) {
         localStorage.setItem('auth_token', data.token);
-        console.log('Token stored:', data.token); // DEBUG
       }
       
       return data;
     },
     onSuccess: (data) => {
-      console.log('Login success, refetching...'); // DEBUG
       setUser(data.user);
-      // Force refetch /me with the new token
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       refetch();
     },
@@ -104,7 +100,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest("POST", "/api/auth/register", data);
       const responseData = await res.json();
       
-      // Store token in localStorage FIRST
       if (responseData.token) {
         localStorage.setItem('auth_token', responseData.token);
       }
@@ -123,7 +118,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await apiRequest("POST", "/api/auth/logout");
     },
     onSuccess: () => {
-      // Clear token from localStorage
       localStorage.removeItem('auth_token');
       setUser(null);
       setProfile(null);
