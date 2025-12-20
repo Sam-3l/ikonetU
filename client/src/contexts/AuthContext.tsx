@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
 
 interface User {
   id: string;
@@ -62,21 +62,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryFn: getQueryFn({ on401: "returnNull" }),
     retry: false,
     staleTime: Infinity,
+    enabled: !!localStorage.getItem('auth_token'), // Only fetch if token exists
   });
 
   useEffect(() => {
     if (data) {
       setUser(data.user);
       setProfile(data.profile);
+    } else {
+      setUser(null);
+      setProfile(null);
     }
   }, [data]);
 
   const loginMutation = useMutation({
     mutationFn: async ({ email, password }: { email: string; password: string }) => {
       const res = await apiRequest("POST", "/api/auth/login", { email, password });
-      return res.json();
+      const data = await res.json();
+      
+      // Store token in localStorage
+      if (data.token) {
+        localStorage.setItem('auth_token', data.token);
+      }
+      
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      setUser(data.user);
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
     },
   });
@@ -84,9 +96,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const registerMutation = useMutation({
     mutationFn: async (data: { email: string; password: string; name: string; role: "founder" | "investor" }) => {
       const res = await apiRequest("POST", "/api/auth/register", data);
-      return res.json();
+      const responseData = await res.json();
+      
+      // Store token in localStorage
+      if (responseData.token) {
+        localStorage.setItem('auth_token', responseData.token);
+      }
+      
+      return responseData;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      setUser(data.user);
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
     },
   });
@@ -96,6 +116,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await apiRequest("POST", "/api/auth/logout");
     },
     onSuccess: () => {
+      // Clear token from localStorage
+      localStorage.removeItem('auth_token');
       setUser(null);
       setProfile(null);
       queryClient.clear();

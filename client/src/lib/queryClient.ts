@@ -13,13 +13,16 @@ export async function apiRequest(
   url: string,
   data?: unknown,
 ): Promise<Response> {
+  const token = localStorage.getItem('auth_token'); // GET TOKEN
+  
   const res = await fetch(`${API_BASE_URL}${url}`, {
     method,
     headers: {
       "Content-Type": "application/json",
+      ...(token && { "Authorization": `Bearer ${token}` }), // ADD TOKEN TO HEADERS
     },
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include", // This ensures cookies are sent
+    // REMOVED credentials: "include" - not needed for tokens
   });
   
   if (!res.ok) {
@@ -35,6 +38,8 @@ type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn =
   <T>({ on401 }: { on401: UnauthorizedBehavior }): QueryFunction<T> =>
   async ({ queryKey }) => {
+    const token = localStorage.getItem('auth_token'); // GET TOKEN
+    
     // Normalize base URL (remove trailing slashes)
     const base = API_BASE_URL.replace(/\/+$/, "");
     // Normalize path (remove leading slashes)
@@ -42,9 +47,10 @@ export const getQueryFn =
     const url = base ? `${base}/${path}` : `/${path}`;
     
     const res = await fetch(url, {
-      credentials: "include", // This ensures cookies are sent with queries
+      // REMOVED credentials: "include"
       headers: {
         "Content-Type": "application/json",
+        ...(token && { "Authorization": `Bearer ${token}` }), // ADD TOKEN TO HEADERS
       },
     });
     
