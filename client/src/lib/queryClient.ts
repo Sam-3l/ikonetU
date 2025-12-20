@@ -32,9 +32,17 @@ export async function apiRequest(
 type UnauthorizedBehavior = "returnNull" | "throw";
 
 export const getQueryFn =
-  <T>({ on401 }: { on401: "returnNull" | "throw" }): QueryFunction<T> =>
+  <T>({ on401 }: { on401: UnauthorizedBehavior }): QueryFunction<T> =>
   async ({ queryKey }) => {
-    const url = `${API_BASE_URL}/${queryKey.join("/")}`;
+    // Normalize base URL (remove trailing slashes)
+    const base = API_BASE_URL.replace(/\/+$/, "");
+
+    // Normalize path (remove leading slashes)
+    const path = queryKey.join("/").replace(/^\/+/, "");
+
+    const url = base
+      ? `${base}/${path}`
+      : `/${path}`;
 
     const res = await fetch(url, {
       credentials: "include",
@@ -44,11 +52,7 @@ export const getQueryFn =
       return null;
     }
 
-    if (!res.ok) {
-      const text = (await res.text()) || res.statusText;
-      throw new Error(`${res.status}: ${text}`);
-    }
-
+    await throwIfResNotOk(res);
     return res.json();
   };
 
