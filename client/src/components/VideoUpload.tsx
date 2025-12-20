@@ -13,6 +13,11 @@ interface VideoUploadProps {
   onCancel?: () => void;
 }
 
+// Helper to get auth token from localStorage
+function getAuthToken(): string | null {
+  return localStorage.getItem('token');
+}
+
 export default function VideoUpload({
   maxDuration = 60,
   onSuccess,
@@ -63,9 +68,7 @@ export default function VideoUpload({
   // Handle fullscreen for recording - hide mobile bottom nav
   useEffect(() => {
     if (step === "recording") {
-      // Add class to body to signal fullscreen recording mode
       document.body.classList.add("recording-fullscreen");
-      // Also try to hide address bars on mobile
       if (window.innerHeight < window.outerHeight) {
         window.scrollTo(0, 1);
       }
@@ -297,52 +300,79 @@ export default function VideoUpload({
       formData.append("title", title || "My Pitch Video");
       formData.append("duration", trimmedDuration.toFixed(2));
       
-      // Send trim timestamps to backend for server-side processing
+      // Send trim timestamps
       const needsTrimming = trimStart > 0.1 || Math.abs(trimEnd - videoDuration) > 0.1;
       if (needsTrimming) {
         formData.append("trim_start", trimStart.toFixed(2));
         formData.append("trim_end", trimEnd.toFixed(2));
       }
 
-      console.log("Starting upload to /api/videos/");
-      console.log("File size:", videoFile.size, "bytes");
-      console.log("Duration:", trimmedDuration.toFixed(2), "seconds");
+      // Get auth token
+      const token = getAuthToken();
+
+      if (!token) {
+        throw new Error("Not authenticated. Please log in again.");
+      }
+
+      const headers: Record<string, string> = {
+        'Authorization': `Token ${token}`,
+      };
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
 
       const res = await fetch("/api/videos/", {
         method: "POST",
         body: formData,
-        credentials: "include",
-        // Explicitly set headers for better compatibility
-        headers: {
-          'Accept': 'application/json',
-        },
+        headers: headers,
+        signal: controller.signal,
       });
-      
-      console.log("Response status:", res.status);
-      console.log("Response headers:", Object.fromEntries(res.headers.entries()));
+
+      clearTimeout(timeoutId);      
+
+      // Check if response is empty
+      const contentLength = res.headers.get("content-length");
+      if (contentLength === "0") {
+        console.error("❌ EMPTY RESPONSE - Backend returned 0 bytes");
+        console.error("This usually means:");
+        console.error("1. CORS preflight passed but POST was blocked");
+        console.error("2. Middleware intercepted the request");
+        console.error("3. Django view returned but response was stripped");
+        throw new Error("Server returned empty response. Check backend logs.");
+      }
 
       if (!res.ok) {
         let errorMessage = "Upload failed";
+        const contentType = res.headers.get("content-type");
+        
         try {
-          const error = await res.json();
-          errorMessage = error.message || error.detail || errorMessage;
+          if (contentType && contentType.includes("application/json")) {
+            const error = await res.json();
+            errorMessage = error.message || error.detail || JSON.stringify(error);
+          } else {
+            const text = await res.text();
+            console.error("Error response text:", text);
+            errorMessage = text || `Server error: ${res.status}`;
+          }
         } catch (e) {
-          const text = await res.text();
-          console.error("Response text:", text);
-          errorMessage = text || `Server error: ${res.status}`;
+          console.error("Error parsing response:", e);
+          errorMessage = `Server error: ${res.status} ${res.statusText}`;
         }
+        
         throw new Error(errorMessage);
       }
 
-      // Parse response
+      // Parse successful response
       let responseData;
       const contentType = res.headers.get("content-type");
+      
       if (contentType && contentType.includes("application/json")) {
         responseData = await res.json();
-        console.log("Upload response:", responseData);
       } else {
         const text = await res.text();
-        console.log("Non-JSON response:", text);
+        if (text) {
+          console.warn("Warning: Expected JSON response but got text");
+        }
       }
 
       toast({
@@ -352,16 +382,26 @@ export default function VideoUpload({
       
       cleanup();
       
-      // Small delay to ensure everything is cleaned up
       setTimeout(() => {
         onSuccess?.();
       }, 100);
       
     } catch (error: any) {
-      console.error("Upload error:", error);
+      console.error("❌ UPLOAD ERROR:", error);
+      console.error("Error name:", error.name);
+      console.error("Error message:", error.message);
+      
+      let errorMessage = "An unexpected error occurred";
+      
+      if (error.name === 'AbortError') {
+        errorMessage = "Upload timed out. Please try again with a smaller file.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Upload failed",
-        description: error.message || "An unexpected error occurred",
+        description: errorMessage,
         variant: "destructive"
       });
       setIsUploading(false);
