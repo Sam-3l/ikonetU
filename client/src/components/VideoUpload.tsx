@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/config/api";
 
 interface VideoUploadProps {
   maxDuration?: number;
@@ -306,7 +307,7 @@ export default function VideoUpload({
         throw new Error("Not authenticated. Please log in again.");
       }
 
-      const res = await fetch("/api/videos/", {
+      const res = await fetch(`${API_BASE_URL}/api/videos/`, {
         method: "POST",
         body: formData,
         headers: {
