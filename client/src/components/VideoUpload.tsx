@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { queryClient } from "@/lib/queryClient";
 import { Video, Upload, Camera, Loader2, X, Play, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -276,7 +277,7 @@ export default function VideoUpload({
 
   const handleSubmit = async () => {
     if (!videoFile) return;
-
+  
     const trimmedDuration = trimEnd - trimStart;
     if (trimmedDuration > maxDuration) {
       toast({
@@ -286,9 +287,9 @@ export default function VideoUpload({
       });
       return;
     }
-
+  
     setIsUploading(true);
-
+  
     try {
       const formData = new FormData();
       formData.append("video_file", videoFile);
@@ -300,13 +301,13 @@ export default function VideoUpload({
         formData.append("trim_start", trimStart.toFixed(2));
         formData.append("trim_end", trimEnd.toFixed(2));
       }
-
+  
       const token = localStorage.getItem('auth_token');
       
       if (!token) {
         throw new Error("Not authenticated. Please log in again.");
       }
-
+  
       const res = await fetch(`${API_BASE_URL}/api/videos/`, {
         method: "POST",
         body: formData,
@@ -314,7 +315,7 @@ export default function VideoUpload({
           'Authorization': `Bearer ${token}`,
         },
       });
-
+  
       if (!res.ok) {
         let errorMessage = "Upload failed";
         try {
@@ -326,12 +327,16 @@ export default function VideoUpload({
         }
         throw new Error(errorMessage);
       }
-
+  
       const contentType = res.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
         await res.json();
       }
-
+  
+      queryClient.invalidateQueries({ queryKey: ["/api/videos/history/"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/videos/my/"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+  
       toast({
         title: "Video submitted!",
         description: "Your pitch video is being processed."

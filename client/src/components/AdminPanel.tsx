@@ -86,6 +86,7 @@ export default function AdminPanel() {
   // Fetch users
   const { data: users, isLoading: usersLoading } = useQuery<AdminUser[]>({
     queryKey: ["/api/admin/users/"],
+    enabled: activeTab === "users",
   });
 
   // Fetch videos
@@ -99,6 +100,7 @@ export default function AdminPanel() {
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },
+    enabled: activeTab === "videos",
   });
 
   // Approve video
@@ -404,7 +406,12 @@ export default function AdminPanel() {
         </TabsContent>
 
         <TabsContent value="reports" className="space-y-6">
-          {/* Reports management UI - similar structure to videos tab */}
+          <h2 className="text-xl font-semibold">Report Management</h2>
+          <Card>
+            <CardContent className="p-12 text-center text-muted-foreground">
+              Reports feature coming soon
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 

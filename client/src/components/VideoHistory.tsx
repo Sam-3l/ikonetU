@@ -36,6 +36,8 @@ export default function VideoHistory() {
 
   const { data: videos, isLoading } = useQuery<Video[]>({
     queryKey: ["/api/videos/history/"],
+    refetchInterval: 10000, // Check for updates every 10 seconds
+    refetchOnWindowFocus: true, // Refresh when user comes back
   });
 
   const setCurrentMutation = useMutation({
