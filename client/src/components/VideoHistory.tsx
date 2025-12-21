@@ -217,7 +217,6 @@ export default function VideoHistory() {
               className="w-full h-full"
               preload="metadata"
               onClick={togglePlay}
-              crossOrigin="anonymous"
             />
 
             {/* Center Play/Pause Button */}
