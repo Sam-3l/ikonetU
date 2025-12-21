@@ -60,7 +60,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Fetch current user data if token exists
   const { data, isLoading, refetch } = useQuery<{ user: AuthUser; profile: FounderProfile | InvestorProfile | null }>({
     queryKey: ["/api/auth/me"],
-    queryFn: getQueryFn({ on401: "returnNull" }),
+    queryFn: async (context) => {
+      try {
+        return await getQueryFn({ on401: "returnNull" })(context);
+      } catch (error) {
+        // If auth check fails, remove the invalid token
+        localStorage.removeItem('auth_token');
+        return null;
+      }
+    },
     retry: false,
     staleTime: Infinity,
     enabled: !!localStorage.getItem('auth_token'),
