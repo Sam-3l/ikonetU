@@ -102,6 +102,16 @@ export default function AdminPanel() {
     enabled: activeTab === "videos",
   });
 
+  // Fetch reports
+  const { data: reports, isLoading: reportsLoading } = useQuery({
+    queryKey: ["/api/admin/reports/"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/admin/reports/");
+      return res.json();
+    },
+    enabled: activeTab === "reports",
+  });
+
   // Approve video
   const approveMutation = useMutation({
     mutationFn: async (videoId: string) => {
@@ -406,11 +416,58 @@ export default function AdminPanel() {
 
         <TabsContent value="reports" className="space-y-6">
           <h2 className="text-xl font-semibold">Report Management</h2>
-          <Card>
-            <CardContent className="p-12 text-center text-muted-foreground">
-              Reports feature coming soon
-            </CardContent>
-          </Card>
+          
+          {reportsLoading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : !reports || reports.length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center text-muted-foreground">
+                No reports found
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {reports.map((report: any) => (
+                <Card key={report.id}>
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant={report.status === "pending" ? "default" : "secondary"}>
+                            {report.status}
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">
+                            {report.reason}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Reported by: {report.reporter?.name || "Anonymous"}
+                        </p>
+                        {report.description && (
+                          <p className="text-sm">{report.description}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {new Date(report.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                      {report.status === "pending" && (
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline">
+                            Review
+                          </Button>
+                          <Button size="sm" variant="ghost">
+                            Dismiss
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
