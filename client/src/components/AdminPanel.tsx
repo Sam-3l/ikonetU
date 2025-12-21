@@ -96,8 +96,7 @@ export default function AdminPanel() {
       const url = videoFilter === "all" 
         ? "/api/admin/videos/"
         : `/api/admin/videos/?status=${videoFilter}`;
-      const res = await fetch(url, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch");
+      const res = await apiRequest("GET", url);
       return res.json();
     },
     enabled: activeTab === "videos",
