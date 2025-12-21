@@ -75,6 +75,7 @@ export default function AdminPanel() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
   const [videoFilter, setVideoFilter] = useState<string>("all");
+  const [reportFilter, setReportFilter] = useState<string>("all");
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const [playingVideo, setPlayingVideo] = useState<AdminVideo | null>(null);
 
@@ -104,9 +105,12 @@ export default function AdminPanel() {
 
   // Fetch reports
   const { data: reports, isLoading: reportsLoading } = useQuery({
-    queryKey: ["/api/admin/reports/"],
+    queryKey: ["/api/admin/reports/", reportFilter],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/admin/reports/");
+      const url = reportFilter === "all"
+        ? "/api/admin/reports/"
+        : `/api/admin/reports/?status=${reportFilter}`;
+      const res = await apiRequest("GET", url);
       return res.json();
     },
     enabled: activeTab === "reports",
@@ -152,6 +156,34 @@ export default function AdminPanel() {
     },
   });
 
+  // Update report (resolve/dismiss)
+  const updateReportMutation = useMutation({
+    mutationFn: async ({ reportId, status }: { reportId: string; status: string }) => {
+      const res = await apiRequest("PUT", `/api/admin/reports/${reportId}/`, {
+        status,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/reports/"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats/"] });
+      toast({ title: "Report updated" });
+    },
+  });
+
+  // Delete report
+  const deleteReportMutation = useMutation({
+    mutationFn: async (reportId: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/reports/${reportId}/delete/`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/reports/"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats/"] });
+      toast({ title: "Report deleted" });
+    },
+  });
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
@@ -162,6 +194,21 @@ export default function AdminPanel() {
         return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  const getReportStatusBadge = (status: string) => {
+    switch (status) {
+      case "pending":
+        return <Badge className="bg-yellow-500"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+      case "reviewed":
+        return <Badge className="bg-blue-500">Reviewed</Badge>;
+      case "resolved":
+        return <Badge className="bg-green-500"><CheckCircle2 className="h-3 w-3 mr-1" />Resolved</Badge>;
+      case "dismissed":
+        return <Badge variant="secondary">Dismissed</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -415,7 +462,21 @@ export default function AdminPanel() {
         </TabsContent>
 
         <TabsContent value="reports" className="space-y-6">
-          <h2 className="text-xl font-semibold">Report Management</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Report Management</h2>
+            <Select value={reportFilter} onValueChange={setReportFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Reports</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="reviewed">Reviewed</SelectItem>
+                <SelectItem value="resolved">Resolved</SelectItem>
+                <SelectItem value="dismissed">Dismissed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           
           {reportsLoading ? (
             <div className="flex justify-center py-12">
@@ -432,34 +493,115 @@ export default function AdminPanel() {
               {reports.map((report: any) => (
                 <Card key={report.id}>
                   <CardContent className="p-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Badge variant={report.status === "pending" ? "default" : "secondary"}>
-                            {report.status}
-                          </Badge>
-                          <span className="text-sm text-muted-foreground">
-                            {report.reason}
-                          </span>
+                    <div className="space-y-4">
+                      {/* Header */}
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            {getReportStatusBadge(report.status)}
+                            <Badge variant="outline">{report.reason}</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Reported by: <span className="font-medium">{report.reporter?.name}</span> ({report.reporter?.email})
+                          </p>
+                          {report.reported_user && (
+                            <p className="text-sm text-muted-foreground">
+                              Reported user: <span className="font-medium">{report.reported_user?.name}</span> ({report.reported_user?.email})
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {new Date(report.created_at).toLocaleString()}
+                          </p>
                         </div>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          Reported by: {report.reporter?.name || "Anonymous"}
-                        </p>
-                        {report.description && (
-                          <p className="text-sm">{report.description}</p>
+                        {report.status === "pending" && (
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => updateReportMutation.mutate({ 
+                                reportId: report.id, 
+                                status: "reviewed" 
+                              })}
+                              disabled={updateReportMutation.isPending}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-1" />
+                              Mark Reviewed
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              className="bg-green-500 hover:bg-green-600"
+                              onClick={() => updateReportMutation.mutate({ 
+                                reportId: report.id, 
+                                status: "resolved" 
+                              })}
+                              disabled={updateReportMutation.isPending}
+                            >
+                              Resolve
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="secondary"
+                              onClick={() => updateReportMutation.mutate({ 
+                                reportId: report.id, 
+                                status: "dismissed" 
+                              })}
+                              disabled={updateReportMutation.isPending}
+                            >
+                              Dismiss
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              onClick={() => deleteReportMutation.mutate(report.id)}
+                              disabled={deleteReportMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         )}
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {new Date(report.created_at).toLocaleString()}
-                        </p>
                       </div>
-                      {report.status === "pending" && (
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
-                            Review
-                          </Button>
-                          <Button size="sm" variant="ghost">
-                            Dismiss
-                          </Button>
+
+                      {/* Description */}
+                      {report.description && (
+                        <div className="bg-muted/50 p-3 rounded-md">
+                          <p className="text-sm font-medium mb-1">Description:</p>
+                          <p className="text-sm">{report.description}</p>
+                        </div>
+                      )}
+
+                      {/* Video Info */}
+                      {report.video && (
+                        <div className="border-t pt-4">
+                          <p className="text-sm font-medium mb-2">Reported Video:</p>
+                          <div className="flex items-center gap-3">
+                            {report.video.thumbnail_url && (
+                              <img 
+                                src={report.video.thumbnail_url} 
+                                alt={report.video.title}
+                                className="w-24 h-16 object-cover rounded"
+                              />
+                            )}
+                            <div>
+                              <p className="text-sm font-medium">{report.video.title}</p>
+                              <a 
+                                href={report.video.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary hover:underline"
+                              >
+                                View Video
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Resolution Info */}
+                      {report.resolved_by_name && report.resolved_at && (
+                        <div className="border-t pt-4">
+                          <p className="text-xs text-muted-foreground">
+                            Resolved by <span className="font-medium">{report.resolved_by_name}</span> on {new Date(report.resolved_at).toLocaleString()}
+                          </p>
                         </div>
                       )}
                     </div>
