@@ -87,6 +87,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: async ({ email, password }: { email: string; password: string }) => {
+      // Clear any existing token before login attempt
+      localStorage.removeItem('auth_token');
+      
       const res = await apiRequest("POST", "/api/auth/login", { email, password });
       const data = await res.json();
       
@@ -105,6 +108,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (data: { email: string; password: string; name: string; role: "founder" | "investor" }) => {
+      // Clear any existing token before registration attempt
+      localStorage.removeItem('auth_token');
+      
       const res = await apiRequest("POST", "/api/auth/register", data);
       const responseData = await res.json();
       
