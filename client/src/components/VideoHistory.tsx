@@ -26,6 +26,7 @@ interface Video {
   status: "processing" | "active" | "rejected" | "archived" | "deleted";
   is_current: boolean;
   view_count: number;
+  like_count: number;
   created_at: string;
 }
 
@@ -431,7 +432,7 @@ export default function VideoHistory() {
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-base mb-1 truncate">{video.title}</h3>
                 <p className="text-sm text-muted-foreground">
-                  {video.view_count} views • {video.duration}s • {new Date(video.created_at).toLocaleDateString()}
+                  {video.view_count} views • {video.like_count} likes • {video.duration}s • {new Date(video.created_at).toLocaleDateString()}
                 </p>
               </div>
               {getStatusBadge(video.status)}
