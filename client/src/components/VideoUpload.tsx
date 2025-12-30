@@ -149,11 +149,22 @@ export default function VideoUpload({
         }
       }, 100);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error("Camera error:", err);
+      
+      let errorMessage = "Please allow camera access to record video";
+      
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        errorMessage = "Camera access denied. Please enable camera permissions in your browser settings.";
+      } else if (err.name === 'NotFoundError') {
+        errorMessage = "No camera found on this device.";
+      } else if (err.name === 'NotReadableError') {
+        errorMessage = "Camera is being used by another application.";
+      }
+      
       toast({
-        title: "Camera access denied",
-        description: "Please allow camera access to record video",
+        title: "Camera access failed",
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -291,22 +302,32 @@ export default function VideoUpload({
     setIsUploading(true);
   
     try {
-      const formData = new FormData();
-      formData.append("video_file", videoFile);
-      formData.append("title", title || "My Pitch Video");
-      formData.append("duration", trimmedDuration.toFixed(2));
-      
-      const needsTrimming = trimStart > 0.1 || Math.abs(trimEnd - videoDuration) > 0.1;
-      if (needsTrimming) {
-        formData.append("trim_start", trimStart.toFixed(2));
-        formData.append("trim_end", trimEnd.toFixed(2));
-      }
-  
       const token = localStorage.getItem('auth_token');
       
       if (!token) {
-        throw new Error("Not authenticated. Please log in again.");
+        throw new Error("Please log in to upload videos");
       }
+
+      let fileToUpload = videoFile;
+      
+      // Check if trimming is needed
+      const needsTrimming = trimStart > 0.1 || Math.abs(trimEnd - videoDuration) > 0.1;
+      
+      if (needsTrimming) {
+        // Trim video on client side
+        try {
+          fileToUpload = await trimVideoClientSide(videoFile, trimStart, trimEnd);
+        } catch (error) {
+          console.error("Trimming error:", error);
+          throw new Error("Failed to trim video. Please try again.");
+        }
+      }
+
+      // Upload the (possibly trimmed) video
+      const formData = new FormData();
+      formData.append("video_file", fileToUpload);
+      formData.append("title", title || "My Pitch Video");
+      formData.append("duration", trimmedDuration.toFixed(2));
   
       const res = await fetch(`${API_BASE_URL}/api/videos/`, {
         method: "POST",
@@ -317,6 +338,11 @@ export default function VideoUpload({
       });
   
       if (!res.ok) {
+        if (res.status === 401) {
+          localStorage.removeItem('auth_token');
+          throw new Error("Session expired. Please log in again.");
+        }
+        
         let errorMessage = "Upload failed";
         try {
           const error = await res.json();
@@ -354,7 +380,177 @@ export default function VideoUpload({
         description: error.message || "An unexpected error occurred",
         variant: "destructive"
       });
+      
       setIsUploading(false);
+    }
+  };
+
+  // CLIENT-SIDE VIDEO TRIMMING with metadata fix
+  const trimVideoClientSide = async (
+    file: File,
+    startTime: number,
+    endTime: number
+  ): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const videoElement = document.createElement('video');
+      const audioElement = document.createElement('video');
+      
+      videoElement.preload = 'auto';
+      audioElement.preload = 'auto';
+      
+      const fileURL = URL.createObjectURL(file);
+      videoElement.src = fileURL;
+      audioElement.src = fileURL;
+      
+      videoElement.muted = true;
+      audioElement.muted = false;
+
+      let canvas: HTMLCanvasElement;
+      let ctx: CanvasRenderingContext2D;
+      let recorder: MediaRecorder;
+      const chunks: Blob[] = [];
+      const duration = endTime - startTime;
+
+      videoElement.onloadedmetadata = async () => {
+        try {
+          canvas = document.createElement('canvas');
+          canvas.width = videoElement.videoWidth;
+          canvas.height = videoElement.videoHeight;
+          ctx = canvas.getContext('2d')!;
+
+          if (!ctx) {
+            throw new Error('Could not get canvas context');
+          }
+
+          const videoStream = canvas.captureStream(30);
+          let combinedStream = new MediaStream(videoStream.getVideoTracks());
+
+          // Try to add audio
+          try {
+            // @ts-ignore
+            if (audioElement.captureStream) {
+              // @ts-ignore
+              const audioStream = audioElement.captureStream();
+              const audioTracks = audioStream.getAudioTracks();
+              if (audioTracks.length > 0) {
+                combinedStream.addTrack(audioTracks[0]);
+              }
+            }
+          } catch (e) {
+            console.warn('Audio not available');
+          }
+
+          let mimeType = 'video/webm;codecs=vp8,opus';
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = 'video/webm;codecs=vp8';
+          }
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = 'video/webm';
+          }
+
+          recorder = new MediaRecorder(combinedStream, {
+            mimeType,
+            videoBitsPerSecond: 2500000
+          });
+
+          recorder.ondataavailable = (e) => {
+            if (e.data.size > 0) {
+              chunks.push(e.data);
+            }
+          };
+
+          recorder.onstop = async () => {
+            try {
+              let blob = new Blob(chunks, { type: mimeType });
+              
+              // Fix WebM metadata using fix-webm-duration approach
+              blob = await fixWebmDuration(blob, duration * 1000); // duration in ms
+              
+              const trimmedFile = new File(
+                [blob],
+                `trimmed-${Date.now()}.webm`,
+                { type: mimeType }
+              );
+              
+              URL.revokeObjectURL(fileURL);
+              combinedStream.getTracks().forEach(track => track.stop());
+              
+              resolve(trimmedFile);
+            } catch (error) {
+              reject(error);
+            }
+          };
+
+          recorder.onerror = () => {
+            reject(new Error('Recording failed'));
+          };
+
+          videoElement.currentTime = startTime;
+          audioElement.currentTime = startTime;
+
+          await new Promise(res => {
+            videoElement.onseeked = res;
+          });
+
+          recorder.start(100);
+          videoElement.play();
+          audioElement.play();
+
+          const captureFrame = () => {
+            if (videoElement.currentTime >= endTime || videoElement.ended) {
+              videoElement.pause();
+              audioElement.pause();
+              setTimeout(() => recorder.stop(), 100);
+              return;
+            }
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            requestAnimationFrame(captureFrame);
+          };
+
+          captureFrame();
+
+        } catch (error) {
+          URL.revokeObjectURL(fileURL);
+          reject(error);
+        }
+      };
+
+      videoElement.onerror = () => {
+        URL.revokeObjectURL(fileURL);
+        reject(new Error('Failed to load video'));
+      };
+    });
+  };
+
+  // Fix WebM duration metadata (inline implementation of fix-webm-duration)
+  const fixWebmDuration = async (blob: Blob, duration: number): Promise<Blob> => {
+    try {
+      const arrayBuffer = await blob.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      
+      // Find duration element in WebM
+      // WebM EBML structure: look for Duration element (0x4489)
+      const durationElement = new Uint8Array([0x44, 0x89]);
+      
+      for (let i = 0; i < bytes.length - 10; i++) {
+        if (bytes[i] === durationElement[0] && bytes[i + 1] === durationElement[1]) {
+          // Found duration element, update it
+          const size = bytes[i + 2];
+          if (size === 0x84 || size === 0x88) {
+            // 4 or 8 byte float
+            const durationFloat = duration; // Duration in milliseconds
+            const view = new DataView(arrayBuffer, i + 3, size - 0x80);
+            view.setFloat64(0, durationFloat, false);
+            return new Blob([bytes], { type: blob.type });
+          }
+        }
+      }
+      
+      // If duration element not found, return original blob
+      return blob;
+    } catch (error) {
+      console.warn('Could not fix WebM duration:', error);
+      return blob;
     }
   };
 
@@ -442,7 +638,7 @@ export default function VideoUpload({
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="video/mp4,video/quicktime,video/webm"
+                    accept="video/mp4,video/quicktime,video/webm,video/*"
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
@@ -542,7 +738,6 @@ export default function VideoUpload({
   if (step === "trim") {
     const trimmedDuration = trimEnd - trimStart;
     const isValidDuration = trimmedDuration <= maxDuration;
-    const needsTrimming = trimStart > 0.1 || Math.abs(trimEnd - videoDuration) > 0.1;
 
     return (
       <div className="space-y-6">
@@ -564,13 +759,6 @@ export default function VideoUpload({
                 <X className="h-5 w-5" />
               </Button>
             </div>
-
-            {needsTrimming && (
-              <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg text-sm text-blue-700 dark:text-blue-300">
-                <Video className="h-4 w-4" />
-                <span>Your video will be processed to the selected length</span>
-              </div>
-            )}
 
             <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
               <video
@@ -700,7 +888,7 @@ export default function VideoUpload({
             {isUploading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Uploading...
+                Processing...
               </>
             ) : (
               <>

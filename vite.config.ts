@@ -26,12 +26,19 @@ export default defineConfig({
       "@assets": path.resolve(import.meta.dirname, "attached_assets"),
     },
   },
+  optimizeDeps: {
+    exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util']
+  },
   root: path.resolve(import.meta.dirname, "client"),
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    target: 'esnext'
   },
   server: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+    },
     fs: {
       strict: true,
       deny: ["**/.*"],
