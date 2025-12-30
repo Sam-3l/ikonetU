@@ -69,22 +69,27 @@ export default function VideoFeed({
   const touchStartY = useRef(0);
   const lastTap = useRef(0);
 
-  // Initialize likes and views from founders data
+  // Create a stable key from the data that matters
+  const foundersDataKey = React.useMemo(() =>
+    founders.map(f => `${f.videoId}-${f.isLiked}-${f.likeCount}-${f.viewCount}`).join('|'),
+    [founders]
+  );
+
   React.useEffect(() => {
-    const initialLikes: Record<string, boolean> = {};
-    const initialLikeCounts: Record<string, number> = {};
-    const initialViewCounts: Record<string, number> = {};
-    
-    founders.forEach(founder => {
-      initialLikes[founder.videoId] = founder.isLiked || false;
-      initialLikeCounts[founder.videoId] = founder.likeCount || 0;
-      initialViewCounts[founder.videoId] = founder.viewCount || 0;
-    });
-    
-    setLikedVideos(initialLikes);
-    setLikeCounts(initialLikeCounts);
-    setViewCounts(initialViewCounts);
-  }, [founders]);
+      const initialLikes: Record<string, boolean> = {};
+      const initialLikeCounts: Record<string, number> = {};
+      const initialViewCounts: Record<string, number> = {};
+      
+      founders.forEach(founder => {
+        initialLikes[founder.videoId] = founder.isLiked || false;
+        initialLikeCounts[founder.videoId] = founder.likeCount || 0;
+        initialViewCounts[founder.videoId] = founder.viewCount || 0;
+      });
+      
+      setLikedVideos(initialLikes);
+      setLikeCounts(initialLikeCounts);
+      setViewCounts(initialViewCounts);
+    }, [foundersDataKey]); // Will trigger whenever the actual data changes
 
   // Auto-play current video and pause others
   React.useEffect(() => {
@@ -322,9 +327,13 @@ export default function VideoFeed({
     
     if (now - lastTap.current < DOUBLE_TAP_DELAY) {
       e.stopPropagation();
+      e.preventDefault(); // Prevent any other action
       handleLikeToggle(founders[currentIndex].videoId, 'like');
+      lastTap.current = 0; // Reset to prevent triple tap issues
+      return true; // Indicate double tap occurred
     } else {
       lastTap.current = now;
+      return false; // Not a double tap
     }
   };
 
@@ -408,8 +417,15 @@ export default function VideoFeed({
                 <div 
                   className="absolute inset-0 cursor-pointer z-[2]"
                   onClick={(e) => {
-                    handleDoubleTap(e);
-                    togglePlay(e, index);
+                    const wasDoubleTap = handleDoubleTap(e);
+                    if (!wasDoubleTap) {
+                      // Only toggle play if it wasn't a double tap
+                      setTimeout(() => {
+                        if (Date.now() - lastTap.current > 300) {
+                          togglePlay(e, index);
+                        }
+                      }, 310); // Wait slightly longer than double tap delay
+                    }
                   }}
                 />
               </>
