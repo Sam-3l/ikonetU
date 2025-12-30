@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { API_BASE_URL } from "@/config/api";
+import { fixWebmDuration } from '@fix-webm-duration/fix';
 
 interface VideoUploadProps {
   maxDuration?: number;
@@ -310,11 +311,9 @@ export default function VideoUpload({
 
       let fileToUpload = videoFile;
       
-      // Check if trimming is needed
       const needsTrimming = trimStart > 0.1 || Math.abs(trimEnd - videoDuration) > 0.1;
       
       if (needsTrimming) {
-        // Trim video on client side
         try {
           fileToUpload = await trimVideoClientSide(videoFile, trimStart, trimEnd);
         } catch (error) {
@@ -323,7 +322,6 @@ export default function VideoUpload({
         }
       }
 
-      // Upload the (possibly trimmed) video
       const formData = new FormData();
       formData.append("video_file", fileToUpload);
       formData.append("title", title || "My Pitch Video");
@@ -385,7 +383,6 @@ export default function VideoUpload({
     }
   };
 
-  // CLIENT-SIDE VIDEO TRIMMING with metadata fix
   const trimVideoClientSide = async (
     file: File,
     startTime: number,
@@ -410,6 +407,7 @@ export default function VideoUpload({
       let recorder: MediaRecorder;
       const chunks: Blob[] = [];
       const duration = endTime - startTime;
+      let recordingStartTime = 0;
 
       videoElement.onloadedmetadata = async () => {
         try {
@@ -425,7 +423,6 @@ export default function VideoUpload({
           const videoStream = canvas.captureStream(30);
           let combinedStream = new MediaStream(videoStream.getVideoTracks());
 
-          // Try to add audio
           try {
             // @ts-ignore
             if (audioElement.captureStream) {
@@ -461,10 +458,18 @@ export default function VideoUpload({
 
           recorder.onstop = async () => {
             try {
+              const recordingDurationMs = Date.now() - recordingStartTime;
+              
+              await new Promise(resolve => setTimeout(resolve, 200));
+              
               let blob = new Blob(chunks, { type: mimeType });
               
-              // Fix WebM metadata using fix-webm-duration approach
-              blob = await fixWebmDuration(blob, duration * 1000); // duration in ms
+              // Fix duration metadata
+              try {
+                blob = await fixWebmDuration(blob, recordingDurationMs, { logger: false });
+              } catch (err) {
+                console.warn('Could not fix duration:', err);
+              }
               
               const trimmedFile = new File(
                 [blob],
@@ -492,6 +497,7 @@ export default function VideoUpload({
             videoElement.onseeked = res;
           });
 
+          recordingStartTime = Date.now();
           recorder.start(100);
           videoElement.play();
           audioElement.play();
@@ -520,38 +526,6 @@ export default function VideoUpload({
         reject(new Error('Failed to load video'));
       };
     });
-  };
-
-  // Fix WebM duration metadata (inline implementation of fix-webm-duration)
-  const fixWebmDuration = async (blob: Blob, duration: number): Promise<Blob> => {
-    try {
-      const arrayBuffer = await blob.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      
-      // Find duration element in WebM
-      // WebM EBML structure: look for Duration element (0x4489)
-      const durationElement = new Uint8Array([0x44, 0x89]);
-      
-      for (let i = 0; i < bytes.length - 10; i++) {
-        if (bytes[i] === durationElement[0] && bytes[i + 1] === durationElement[1]) {
-          // Found duration element, update it
-          const size = bytes[i + 2];
-          if (size === 0x84 || size === 0x88) {
-            // 4 or 8 byte float
-            const durationFloat = duration; // Duration in milliseconds
-            const view = new DataView(arrayBuffer, i + 3, size - 0x80);
-            view.setFloat64(0, durationFloat, false);
-            return new Blob([bytes], { type: blob.type });
-          }
-        }
-      }
-      
-      // If duration element not found, return original blob
-      return blob;
-    } catch (error) {
-      console.warn('Could not fix WebM duration:', error);
-      return blob;
-    }
   };
 
   const resetUpload = () => {
