@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, Trash2, CheckCircle2, Clock, XCircle, Maximize2, Minimize2, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, Trash2, CheckCircle2, Clock, XCircle, Maximize2, Minimize2, Volume2, VolumeX, Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,8 +36,8 @@ export default function VideoHistory() {
 
   const { data: videos, isLoading } = useQuery<Video[]>({
     queryKey: ["/api/videos/history/"],
-    refetchInterval: 10000, // Check for updates every 10 seconds
-    refetchOnWindowFocus: true, // Refresh when user comes back
+    refetchInterval: 10000,
+    refetchOnWindowFocus: true,
   });
 
   const setCurrentMutation = useMutation({
@@ -100,6 +100,7 @@ export default function VideoHistory() {
   const VideoCard = ({ video, isCurrent = false }: { video: Video; isCurrent?: boolean }) => {
     const isExpanded = expandedVideo === video.id;
     const videoRef = useRef<HTMLVideoElement>(null);
+    const progressBarRef = useRef<HTMLDivElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
@@ -108,6 +109,10 @@ export default function VideoHistory() {
     const [playbackRate, setPlaybackRate] = useState(1);
     const [showControls, setShowControls] = useState(true);
     const [isHovering, setIsHovering] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isBuffering, setIsBuffering] = useState(false);
+    const [hasError, setHasError] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
     const hideControlsTimeout = useRef<NodeJS.Timeout>();
 
     useEffect(() => {
@@ -115,16 +120,33 @@ export default function VideoHistory() {
       if (!video) return;
 
       const handleTimeUpdate = () => setCurrentTime(video.currentTime);
-      const handleLoadedMetadata = () => setDuration(video.duration);
+      const handleLoadedMetadata = () => {
+        setDuration(video.duration);
+        setIsLoading(false);
+      };
       const handlePlay = () => setIsPlaying(true);
       const handlePause = () => setIsPlaying(false);
       const handleEnded = () => setIsPlaying(false);
+      const handleWaiting = () => setIsBuffering(true);
+      const handleCanPlay = () => {
+        setIsBuffering(false);
+        setIsLoading(false);
+      };
+      const handleError = () => {
+        setHasError(true);
+        setIsLoading(false);
+      };
+      const handleLoadStart = () => setIsLoading(true);
 
       video.addEventListener("timeupdate", handleTimeUpdate);
       video.addEventListener("loadedmetadata", handleLoadedMetadata);
       video.addEventListener("play", handlePlay);
       video.addEventListener("pause", handlePause);
       video.addEventListener("ended", handleEnded);
+      video.addEventListener("waiting", handleWaiting);
+      video.addEventListener("canplay", handleCanPlay);
+      video.addEventListener("error", handleError);
+      video.addEventListener("loadstart", handleLoadStart);
 
       return () => {
         video.removeEventListener("timeupdate", handleTimeUpdate);
@@ -132,6 +154,10 @@ export default function VideoHistory() {
         video.removeEventListener("play", handlePlay);
         video.removeEventListener("pause", handlePause);
         video.removeEventListener("ended", handleEnded);
+        video.removeEventListener("waiting", handleWaiting);
+        video.removeEventListener("canplay", handleCanPlay);
+        video.removeEventListener("error", handleError);
+        video.removeEventListener("loadstart", handleLoadStart);
       };
     }, []);
 
@@ -145,13 +171,38 @@ export default function VideoHistory() {
       }
     };
 
-    const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const percent = (e.clientX - rect.left) / rect.width;
-      if (videoRef.current) {
-        videoRef.current.currentTime = percent * duration;
-      }
+    const handleProgressInteraction = (e: React.MouseEvent<HTMLDivElement> | MouseEvent) => {
+      if (!progressBarRef.current || !videoRef.current) return;
+      const rect = progressBarRef.current.getBoundingClientRect();
+      const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      videoRef.current.currentTime = percent * duration;
+      setCurrentTime(percent * duration);
     };
+
+    const handleProgressMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+      setIsDragging(true);
+      handleProgressInteraction(e);
+    };
+
+    useEffect(() => {
+      if (!isDragging) return;
+
+      const handleMouseMove = (e: MouseEvent) => {
+        handleProgressInteraction(e);
+      };
+
+      const handleMouseUp = () => {
+        setIsDragging(false);
+      };
+
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }, [isDragging, duration]);
 
     const toggleMute = () => {
       if (videoRef.current) {
@@ -185,6 +236,7 @@ export default function VideoHistory() {
     };
 
     const formatTime = (time: number) => {
+      if (!isFinite(time) || isNaN(time)) return "0:00";
       const minutes = Math.floor(time / 60);
       const seconds = Math.floor(time % 60);
       return `${minutes}:${seconds.toString().padStart(2, "0")}`;
@@ -205,7 +257,6 @@ export default function VideoHistory() {
     return (
       <Card className={`overflow-hidden ${isExpanded ? 'col-span-full' : ''}`}>
         <CardContent className="p-0">
-          {/* Custom Video Player */}
           <div 
             className={`relative bg-black ${isExpanded ? 'aspect-video' : 'aspect-video'} group cursor-pointer`}
             onMouseMove={handleMouseMove}
@@ -221,128 +272,157 @@ export default function VideoHistory() {
               onClick={togglePlay}
             />
 
+            {/* Loading State */}
+            {isLoading && !hasError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
+                <Loader2 className="h-12 w-12 text-white animate-spin mb-3" />
+                <p className="text-white text-sm">Loading video...</p>
+              </div>
+            )}
+
+            {/* Buffering State */}
+            {isBuffering && !isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <Loader2 className="h-12 w-12 text-white animate-spin" />
+              </div>
+            )}
+
+            {/* Error State */}
+            {hasError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80">
+                <XCircle className="h-12 w-12 text-red-500 mb-3" />
+                <p className="text-white text-sm">Failed to load video</p>
+              </div>
+            )}
+
             {/* Center Play/Pause Button */}
-            <div 
-              className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 pointer-events-none ${
-                showControls || !isPlaying ? 'opacity-100' : 'opacity-0'
-              }`}
-            >
-              <button 
-                className="pointer-events-auto w-20 h-20 rounded-full bg-black/70 hover:bg-black/90 flex items-center justify-center transition-all hover:scale-110 backdrop-blur-sm"
-                onClick={togglePlay}
+            {!isLoading && !hasError && (
+              <div 
+                className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 pointer-events-none ${
+                  showControls || !isPlaying ? 'opacity-100' : 'opacity-0'
+                }`}
               >
-                {isPlaying ? (
-                  <Pause className="h-10 w-10 text-white" fill="white" />
-                ) : (
-                  <Play className="h-10 w-10 text-white ml-1" fill="white" />
-                )}
-              </button>
-            </div>
+                <button 
+                  className="pointer-events-auto w-20 h-20 rounded-full bg-black/70 hover:bg-black/90 flex items-center justify-center transition-all hover:scale-110 backdrop-blur-sm"
+                  onClick={togglePlay}
+                >
+                  {isPlaying ? (
+                    <Pause className="h-10 w-10 text-white" fill="white" />
+                  ) : (
+                    <Play className="h-10 w-10 text-white ml-1" fill="white" />
+                  )}
+                </button>
+              </div>
+            )}
 
             {/* Custom Controls Bar */}
-            <div 
-              className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent transition-opacity duration-300 ${
-                showControls ? 'opacity-100' : 'opacity-0'
-              }`}
-            >
-              {/* Progress Bar */}
+            {!isLoading && !hasError && (
               <div 
-                className="w-full h-1.5 bg-white/20 cursor-pointer group/progress hover:h-2 transition-all"
-                onClick={handleProgressClick}
+                className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent transition-opacity duration-300 ${
+                  showControls ? 'opacity-100' : 'opacity-0'
+                }`}
               >
+                {/* Progress Bar - Draggable & Thinner */}
                 <div 
-                  className="h-full bg-blue-500 relative"
-                  style={{ width: `${(currentTime / duration) * 100}%` }}
+                  ref={progressBarRef}
+                  className="w-full h-1 bg-white/20 cursor-pointer group/progress hover:h-1.5 transition-all relative"
+                  onMouseDown={handleProgressMouseDown}
                 >
-                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-500 rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity" />
-                </div>
-              </div>
-
-              {/* Controls */}
-              <div className="flex items-center justify-between px-4 py-3 text-white">
-                <div className="flex items-center gap-4">
-                  {/* Play/Pause */}
-                  <button 
-                    onClick={togglePlay}
-                    className="hover:scale-110 transition-transform"
+                  <div 
+                    className="h-full bg-blue-500 relative transition-all"
+                    style={{ width: `${(currentTime / duration) * 100}%` }}
                   >
-                    {isPlaying ? (
-                      <Pause className="h-5 w-5" fill="white" />
-                    ) : (
-                      <Play className="h-5 w-5" fill="white" />
-                    )}
-                  </button>
-
-                  {/* Volume */}
-                  <div className="flex items-center gap-2 group/volume">
-                    <button 
-                      onClick={toggleMute}
-                      className="hover:scale-110 transition-transform"
-                    >
-                      {isMuted || volume === 0 ? (
-                        <VolumeX className="h-5 w-5" />
-                      ) : (
-                        <Volume2 className="h-5 w-5" />
-                      )}
-                    </button>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={isMuted ? 0 : volume}
-                      onChange={handleVolumeChange}
-                      className="w-0 group-hover/volume:w-20 transition-all opacity-0 group-hover/volume:opacity-100"
+                    <div 
+                      className={`absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-500 rounded-full shadow-lg transition-opacity ${
+                        isDragging || isHovering ? 'opacity-100 scale-125' : 'opacity-0 group-hover/progress:opacity-100'
+                      }`} 
                     />
                   </div>
-
-                  {/* Time */}
-                  <span className="text-sm font-medium">
-                    {formatTime(currentTime)} / {formatTime(duration)}
-                  </span>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  {/* Playback Speed */}
-                  <div className="relative group/speed">
-                    <button className="text-sm font-medium hover:bg-white/10 px-2 py-1 rounded transition-colors">
-                      {playbackRate}x
+                {/* Controls */}
+                <div className="flex items-center justify-between px-4 py-2.5 text-white">
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={togglePlay}
+                      className="hover:scale-110 transition-transform"
+                    >
+                      {isPlaying ? (
+                        <Pause className="h-5 w-5" fill="white" />
+                      ) : (
+                        <Play className="h-5 w-5" fill="white" />
+                      )}
                     </button>
-                    <div className="absolute bottom-full right-0 mb-2 bg-black/95 rounded-lg p-2 opacity-0 group-hover/speed:opacity-100 pointer-events-none group-hover/speed:pointer-events-auto transition-opacity">
-                      {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
-                        <button
-                          key={rate}
-                          onClick={() => handlePlaybackRateChange(rate)}
-                          className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-white/10 rounded transition-colors whitespace-nowrap ${
-                            playbackRate === rate ? 'text-blue-400' : ''
-                          }`}
-                        >
-                          {rate}x
-                        </button>
-                      ))}
+
+                    <div className="flex items-center gap-2 group/volume">
+                      <button 
+                        onClick={toggleMute}
+                        className="hover:scale-110 transition-transform"
+                      >
+                        {isMuted || volume === 0 ? (
+                          <VolumeX className="h-5 w-5" />
+                        ) : (
+                          <Volume2 className="h-5 w-5" />
+                        )}
+                      </button>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={isMuted ? 0 : volume}
+                        onChange={handleVolumeChange}
+                        className="w-0 group-hover/volume:w-20 transition-all opacity-0 group-hover/volume:opacity-100"
+                      />
                     </div>
+
+                    <span className="text-sm font-medium tabular-nums">
+                      {formatTime(currentTime)} / {formatTime(duration)}
+                    </span>
                   </div>
 
-                  {/* Fullscreen */}
-                  <button 
-                    onClick={toggleFullscreen}
-                    className="hover:scale-110 transition-transform"
-                  >
-                    <Maximize2 className="h-5 w-5" />
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <div className="relative group/speed">
+                      <button className="text-sm font-medium hover:bg-white/10 px-2 py-1 rounded transition-colors">
+                        {playbackRate}x
+                      </button>
+                      <div className="absolute bottom-full right-0 mb-2 bg-black/95 rounded-lg p-2 opacity-0 group-hover/speed:opacity-100 pointer-events-none group-hover/speed:pointer-events-auto transition-opacity">
+                        {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
+                          <button
+                            key={rate}
+                            onClick={() => handlePlaybackRateChange(rate)}
+                            className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-white/10 rounded transition-colors whitespace-nowrap ${
+                              playbackRate === rate ? 'text-blue-400' : ''
+                            }`}
+                          >
+                            {rate}x
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={toggleFullscreen}
+                      className="hover:scale-110 transition-transform"
+                    >
+                      <Maximize2 className="h-5 w-5" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Expand/Collapse Toggle */}
-            <button
-              onClick={() => setExpandedVideo(isExpanded ? null : video.id)}
-              className={`absolute top-3 right-3 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-all ${
-                showControls ? 'opacity-100' : 'opacity-0'
-              }`}
-            >
-              {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            </button>
+            {!isLoading && !hasError && (
+              <button
+                onClick={() => setExpandedVideo(isExpanded ? null : video.id)}
+                className={`absolute top-3 right-3 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-all ${
+                  showControls ? 'opacity-100' : 'opacity-0'
+                }`}
+              >
+                {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </button>
+            )}
           </div>
 
           {/* Video Info */}
@@ -357,7 +437,6 @@ export default function VideoHistory() {
               {getStatusBadge(video.status)}
             </div>
 
-            {/* Status Messages */}
             {video.status === "rejected" && (
               <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
                 <p className="text-sm text-destructive font-medium">
@@ -374,7 +453,6 @@ export default function VideoHistory() {
               </div>
             )}
 
-            {/* Actions for History Videos */}
             {!isCurrent && (
               <div className="flex gap-2">
                 <Button
@@ -403,7 +481,6 @@ export default function VideoHistory() {
 
   return (
     <div className="space-y-8">
-      {/* Current Video */}
       {currentVideo && (
         <div>
           <h2 className="text-xl font-semibold mb-4">Current Pitch Video</h2>
@@ -413,7 +490,6 @@ export default function VideoHistory() {
         </div>
       )}
 
-      {/* Video History */}
       <div>
         <h2 className="text-xl font-semibold mb-4">Video History ({historyVideos?.length || 0})</h2>
         {!historyVideos || historyVideos.length === 0 ? (
@@ -434,7 +510,6 @@ export default function VideoHistory() {
         )}
       </div>
 
-      {/* Delete Confirmation */}
       <AlertDialog open={!!videoToDelete} onOpenChange={() => setVideoToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

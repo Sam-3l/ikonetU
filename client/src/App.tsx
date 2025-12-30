@@ -71,8 +71,8 @@ function DiscoverPage() {
         const video = videos?.find(v => v.founderId === variables.founderId);
         if (video) {
           setMatchedFounder({
-            name: video.founder.user?.name || "Founder",
-            company: video.founder.profile?.companyName || "Company",
+            name: video.founder?.user?.name || "Founder",
+            company: video.founder?.profile?.companyName || "Company",
           });
           setShowMatch(true);
         }
@@ -84,18 +84,48 @@ function DiscoverPage() {
     },
   });
 
+  const handleLike = async (videoId: string, isDoubleTap: boolean = false) => {
+    try {
+      const res = await apiRequest("POST", `/api/videos/${videoId}/like/`, {
+        double_tap: isDoubleTap
+      });
+      await res.json();
+    } catch (error) {
+      console.error("Failed to toggle like:", error);
+      throw error;
+    }
+  };
+
+  const handleView = async (videoId: string) => {
+    try {
+      const res = await apiRequest("POST", `/api/videos/${videoId}/track-view/`);
+      await res.json();
+    } catch (error) {
+      console.error("Failed to track view:", error);
+    }
+  };
+
   const founders = videos?.map(video => {
+    // Backend returns snake_case fields
+    const founderData = video.founder || {};
+    const userData = founderData.user || {};
+    const profileData = founderData.profile || {};
+    
     return {
       id: video.founder_id,
-      name: video.founder?.user?.name || "Unknown",
-      avatar: video.founder?.user?.avatar_url || undefined,
-      company: video.founder?.profile?.company_name || "Unknown Company",
-      sector: video.founder?.profile?.sector || "Tech",
-      stage: video.founder?.profile?.stage || "Seed",
-      location: video.founder?.profile?.location || "Unknown",
+      name: userData.name || "Unknown",
+      avatar: userData.avatar_url || undefined,
+      company: profileData.company_name || "Unknown Company",
+      sector: profileData.sector || "Tech",
+      stage: profileData.stage || "Seed",
+      location: profileData.location || "Unknown",
       videoUrl: video.url,
       videoPoster: video.thumbnail_url || undefined,
       videoId: video.id,
+      title: video.title,
+      viewCount: video.view_count || 0,
+      likeCount: video.like_count || 0,
+      isLiked: video.is_liked || false,
     };
   }) || [];
 
@@ -115,19 +145,19 @@ function DiscoverPage() {
       <VideoFeed
         founders={founders}
         onInterested={(founderId) => {
-          const video = videos?.find(v => v.founderId === founderId);
+          const video = videos?.find(v => v.founder_id === founderId);
           if (video) {
             signalMutation.mutate({ founderId, videoId: video.id, type: "interested" });
           }
         }}
         onMaybe={(founderId) => {
-          const video = videos?.find(v => v.founderId === founderId);
+          const video = videos?.find(v => v.founder_id === founderId);
           if (video) {
             signalMutation.mutate({ founderId, videoId: video.id, type: "maybe" });
           }
         }}
         onPass={(founderId) => {
-          const video = videos?.find(v => v.founderId === founderId);
+          const video = videos?.find(v => v.founder_id === founderId);
           if (video) {
             signalMutation.mutate({ founderId, videoId: video.id, type: "pass" });
           }
@@ -141,6 +171,8 @@ function DiscoverPage() {
           });
           setShowReport(true);
         }}
+        onLike={handleLike}
+        onView={handleView}
       />
       <MatchModal
         isOpen={showMatch}

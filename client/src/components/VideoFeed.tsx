@@ -27,6 +27,10 @@ interface Founder {
   videoUrl: string;
   videoPoster?: string;
   videoId: string;
+  title?: string;
+  viewCount?: number;
+  likeCount?: number;
+  isLiked?: boolean;
 }
 
 interface VideoFeedProps {
@@ -36,6 +40,8 @@ interface VideoFeedProps {
   onPass?: (founderId: string) => void;
   onInfo?: (founderId: string) => void;
   onReport?: (founderId: string, videoId: string) => void;
+  onLike?: (videoId: string, isDoubleTap?: boolean) => Promise<void>;
+  onView?: (videoId: string) => Promise<void>;
 }
 
 export default function VideoFeed({
@@ -45,47 +51,226 @@ export default function VideoFeed({
   onPass,
   onInfo,
   onReport,
+  onLike,
+  onView,
 }: VideoFeedProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [playingStates, setPlayingStates] = useState<Record<number, boolean>>({});
   const [showPassConfirm, setShowPassConfirm] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const [showLikeAnimation, setShowLikeAnimation] = useState(false);
+  const [likedVideos, setLikedVideos] = useState<Record<string, boolean>>({});
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
+  const [viewedVideos, setViewedVideos] = useState<Set<string>>(new Set());
+  const containerRef = useRef<HTMLDivElement>(null);
+  const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
+  const isScrolling = useRef(false);
+  const touchStartY = useRef(0);
+  const lastTap = useRef(0);
 
-  const currentFounder = founders[currentIndex];
-
-  // Auto-play when video changes
+  // Initialize likes and views from founders data
   React.useEffect(() => {
-    if (videoRef.current && currentFounder?.videoUrl) {
-      videoRef.current.load();
-      const playPromise = videoRef.current.play();
+    const initialLikes: Record<string, boolean> = {};
+    const initialLikeCounts: Record<string, number> = {};
+    const initialViewCounts: Record<string, number> = {};
+    
+    founders.forEach(founder => {
+      initialLikes[founder.videoId] = founder.isLiked || false;
+      initialLikeCounts[founder.videoId] = founder.likeCount || 0;
+      initialViewCounts[founder.videoId] = founder.viewCount || 0;
+    });
+    
+    setLikedVideos(initialLikes);
+    setLikeCounts(initialLikeCounts);
+    setViewCounts(initialViewCounts);
+  }, [founders]);
+
+  // Auto-play current video and pause others
+  React.useEffect(() => {
+    const currentVideo = videoRefs.current[currentIndex];
+    
+    if (currentVideo && founders[currentIndex]?.videoUrl) {
+      currentVideo.load();
+      const playPromise = currentVideo.play();
       
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
-            setIsPlaying(true);
+            setPlayingStates(prev => ({ ...prev, [currentIndex]: true }));
+            handleView(founders[currentIndex].videoId);
           })
           .catch((error) => {
             console.error("Auto-play failed:", error);
-            setIsPlaying(false);
+            setPlayingStates(prev => ({ ...prev, [currentIndex]: false }));
           });
       }
     }
-  }, [currentIndex, currentFounder?.videoUrl]);
+
+    Object.entries(videoRefs.current).forEach(([idx, video]) => {
+      if (video && parseInt(idx) !== currentIndex) {
+        video.pause();
+        setPlayingStates(prev => ({ ...prev, [parseInt(idx)]: false }));
+      }
+    });
+  }, [currentIndex, founders]);
+
+  const handleView = async (videoId: string) => {
+    if (!viewedVideos.has(videoId)) {
+      setViewedVideos(prev => new Set(prev).add(videoId));
+      setViewCounts(prev => ({
+        ...prev,
+        [videoId]: (prev[videoId] || 0) + 1
+      }));
+      
+      if (onView) {
+        try {
+          await onView(videoId);
+        } catch (error) {
+          console.error("Failed to track view:", error);
+        }
+      }
+    }
+  };
+
+  const handleLikeToggle = async (videoId: string, forceAction?: 'like') => {
+    const isCurrentlyLiked = likedVideos[videoId];
+    
+    // If forceAction is 'like' and already liked, do nothing
+    if (forceAction === 'like' && isCurrentlyLiked) {
+      setShowLikeAnimation(true);
+      setTimeout(() => setShowLikeAnimation(false), 1000);
+      return;
+    }
+    
+    const newLikedState = forceAction === 'like' ? true : !isCurrentlyLiked;
+    
+    // Optimistic update
+    setLikedVideos(prev => ({
+      ...prev,
+      [videoId]: newLikedState
+    }));
+    
+    setLikeCounts(prev => ({
+      ...prev,
+      [videoId]: newLikedState 
+        ? (prev[videoId] || 0) + 1 
+        : Math.max((prev[videoId] || 0) - 1, 0)
+    }));
+    
+    if (newLikedState) {
+      setShowLikeAnimation(true);
+      setTimeout(() => setShowLikeAnimation(false), 1000);
+    }
+    
+    if (onLike) {
+      try {
+        await onLike(videoId, forceAction === 'like');
+      } catch (error) {
+        console.error("Failed to toggle like:", error);
+        // Rollback on error
+        setLikedVideos(prev => ({
+          ...prev,
+          [videoId]: isCurrentlyLiked
+        }));
+        setLikeCounts(prev => ({
+          ...prev,
+          [videoId]: isCurrentlyLiked 
+            ? (prev[videoId] || 0) + 1 
+            : Math.max((prev[videoId] || 0) - 1, 0)
+        }));
+      }
+    }
+  };
+
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      if (isScrolling.current) return;
+      
+      isScrolling.current = true;
+      const scrollTop = container.scrollTop;
+      const containerHeight = container.clientHeight;
+      const newIndex = Math.round(scrollTop / containerHeight);
+      
+      if (newIndex !== currentIndex && newIndex >= 0 && newIndex < founders.length) {
+        setCurrentIndex(newIndex);
+      }
+      
+      setTimeout(() => {
+        isScrolling.current = false;
+      }, 150);
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [currentIndex, founders.length]);
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown' && currentIndex < founders.length - 1) {
+        scrollToVideo(currentIndex + 1);
+      } else if (e.key === 'ArrowUp' && currentIndex > 0) {
+        scrollToVideo(currentIndex - 1);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentIndex, founders.length]);
+
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartY.current = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const touchEndY = e.changedTouches[0].clientY;
+      const deltaY = touchStartY.current - touchEndY;
+      
+      if (Math.abs(deltaY) > 50) {
+        if (deltaY > 0 && currentIndex < founders.length - 1) {
+          scrollToVideo(currentIndex + 1);
+        } else if (deltaY < 0 && currentIndex > 0) {
+          scrollToVideo(currentIndex - 1);
+        }
+      }
+    };
+
+    container.addEventListener('touchstart', handleTouchStart);
+    container.addEventListener('touchend', handleTouchEnd);
+    
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [currentIndex, founders.length]);
+
+  const scrollToVideo = (index: number) => {
+    const container = containerRef.current;
+    if (!container) return;
+    
+    const containerHeight = container.clientHeight;
+    container.scrollTo({
+      top: index * containerHeight,
+      behavior: 'smooth'
+    });
+    setCurrentIndex(index);
+  };
 
   const advanceToNext = () => {
     if (currentIndex < founders.length - 1) {
-      // Pause current video before advancing
-      if (videoRef.current) {
-        videoRef.current.pause();
-      }
-      setCurrentIndex((prev) => prev + 1);
-      setIsPlaying(false);
+      scrollToVideo(currentIndex + 1);
     }
   };
 
   const handleAction = (action: "interested" | "maybe" | "pass") => {
-    const founderId = currentFounder.id;
+    const founderId = founders[currentIndex].id;
     if (action === "interested") {
       onInterested?.(founderId);
       advanceToNext();
@@ -98,43 +283,70 @@ export default function VideoFeed({
   };
 
   const handleConfirmPass = () => {
-    onPass?.(currentFounder.id);
+    onPass?.(founders[currentIndex].id);
     setShowPassConfirm(false);
     advanceToNext();
   };
 
-  const togglePlay = (e?: React.MouseEvent) => {
-    e?.stopPropagation(); // Prevent event bubbling
+  const togglePlay = (e?: React.MouseEvent, index?: number) => {
+    e?.stopPropagation();
+    const targetIndex = index ?? currentIndex;
+    const video = videoRefs.current[targetIndex];
     
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-        setIsPlaying(false);
+    if (video) {
+      const isCurrentlyPlaying = playingStates[targetIndex];
+      
+      if (isCurrentlyPlaying) {
+        video.pause();
+        setPlayingStates(prev => ({ ...prev, [targetIndex]: false }));
       } else {
-        const playPromise = videoRef.current.play();
+        const playPromise = video.play();
         
         if (playPromise !== undefined) {
           playPromise
             .then(() => {
-              setIsPlaying(true);
+              setPlayingStates(prev => ({ ...prev, [targetIndex]: true }));
             })
             .catch((err) => {
               console.error("Video play error:", err);
-              setIsPlaying(false);
+              setPlayingStates(prev => ({ ...prev, [targetIndex]: false }));
             });
         }
       }
     }
   };
 
-  const toggleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
+  const handleDoubleTap = (e: React.MouseEvent) => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+    
+    if (now - lastTap.current < DOUBLE_TAP_DELAY) {
+      e.stopPropagation();
+      handleLikeToggle(founders[currentIndex].videoId, 'like');
+    } else {
+      lastTap.current = now;
     }
   };
 
-  if (!currentFounder) {
+  const toggleMute = () => {
+    Object.values(videoRefs.current).forEach(video => {
+      if (video) {
+        video.muted = !isMuted;
+      }
+    });
+    setIsMuted(!isMuted);
+  };
+
+  const formatCount = (count: number): string => {
+    if (count >= 1000000) {
+      return `${(count / 1000000).toFixed(1)}M`;
+    } else if (count >= 1000) {
+      return `${(count / 1000).toFixed(1)}K`;
+    }
+    return count.toString();
+  };
+
+  if (founders.length === 0) {
     return (
       <div className="flex h-full items-center justify-center bg-background" data-testid="feed-empty">
         <div className="text-center p-8">
@@ -149,170 +361,203 @@ export default function VideoFeed({
   }
 
   return (
-    <div className="relative h-full w-full bg-black overflow-hidden" data-testid="video-feed">
-      <div
-        className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80"
-        style={{ zIndex: 1 }}
-      />
-
-      <div
-        className="absolute inset-0 flex items-center justify-center"
-      >
-        {currentFounder.videoUrl ? (
-          <>
-            <video
-              ref={videoRef}
-              src={currentFounder.videoUrl}
-              poster={currentFounder.videoPoster}
-              className="w-full h-full object-cover"
-              muted={isMuted}
-              loop
-              playsInline
-              preload="auto"
-              data-testid="video-player"
-              onError={(e) => {
-                console.error("Video load error:", e);
-                console.log("Failed URL:", currentFounder.videoUrl);
-              }}
-              onLoadedData={() => {
-                console.log("Video loaded successfully:", currentFounder.videoUrl);
-              }}
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
-            />
-            {/* Clickable overlay for play/pause */}
-            <div 
-              className="absolute inset-0 cursor-pointer z-[2]"
-              onClick={togglePlay}
-            />
-          </>
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-            <div className="text-white/60 text-center p-4">
-              <Play className="w-16 h-16 mx-auto mb-2 opacity-50" />
-              <p>No video available</p>
-            </div>
-          </div>
-        )}
-        {!isPlaying && currentFounder.videoUrl && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none z-[3]">
-            <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <Play className="w-10 h-10 text-white ml-1" />
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="absolute bottom-24 left-4 right-20 z-10" data-testid="founder-info-overlay">
-        <div className="flex items-start gap-3 mb-3">
-          <Avatar className="h-12 w-12 border-2 border-white/50">
-            <AvatarImage src={currentFounder.avatar} />
-            <AvatarFallback className="bg-primary text-primary-foreground">
-              {currentFounder.name.charAt(0)}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <h3 className="font-display text-lg font-semibold text-white">
-              {currentFounder.name}
-            </h3>
-            <p className="text-white/80 text-sm">{currentFounder.company}</p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary" className="bg-white/20 text-white border-0 backdrop-blur-sm">
-            {currentFounder.sector}
-          </Badge>
-          <Badge variant="secondary" className="bg-white/20 text-white border-0 backdrop-blur-sm">
-            {currentFounder.stage}
-          </Badge>
-          <Badge variant="secondary" className="bg-white/20 text-white border-0 backdrop-blur-sm">
-            {currentFounder.location}
-          </Badge>
-        </div>
-      </div>
-
-      <div className="absolute right-4 bottom-32 z-10 flex flex-col gap-4" data-testid="action-buttons">
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-14 w-14 rounded-full bg-white/20 backdrop-blur-sm text-white border-0"
-          onClick={() => handleAction("interested")}
-          data-testid="button-interested"
+    <div 
+      ref={containerRef}
+      className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
+      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      data-testid="video-feed"
+    >
+      <style>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+      
+      {founders.map((founder, index) => (
+        <div 
+          key={founder.id}
+          className="relative h-full w-full snap-start snap-always bg-black flex items-center justify-center"
         >
-          <Heart className="h-7 w-7" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-14 w-14 rounded-full bg-white/20 backdrop-blur-sm text-white border-0"
-          onClick={() => handleAction("maybe")}
-          data-testid="button-maybe"
-        >
-          <Bookmark className="h-7 w-7" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-14 w-14 rounded-full bg-white/20 backdrop-blur-sm text-white border-0"
-          onClick={() => handleAction("pass")}
-          data-testid="button-pass"
-        >
-          <X className="h-7 w-7" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-14 w-14 rounded-full bg-white/20 backdrop-blur-sm text-white border-0"
-          onClick={() => onInfo?.(currentFounder.id)}
-          data-testid="button-info"
-        >
-          <Info className="h-7 w-7" />
-        </Button>
-        <div className="h-2" />
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-14 w-14 rounded-full bg-white/20 backdrop-blur-sm text-white/70 border-0 hover:text-white"
-          onClick={() => onReport?.(currentFounder.id, currentFounder.videoId)}
-          data-testid="button-report"
-        >
-          <Flag className="h-7 w-7" />
-        </Button>
-      </div>
-
-      <div className="absolute top-4 right-4 z-10">
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm text-white border-0"
-          onClick={toggleMute}
-          data-testid="button-mute"
-        >
-          {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-        </Button>
-      </div>
-
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex gap-1">
-        {founders.map((_, idx) => (
           <div
-            key={idx}
-            className={`h-1 rounded-full transition-all ${
-              idx === currentIndex
-                ? "w-6 bg-white"
-                : idx < currentIndex
-                ? "w-4 bg-white/50"
-                : "w-4 bg-white/30"
-            }`}
+            className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 pointer-events-none"
+            style={{ zIndex: 1 }}
           />
-        ))}
-      </div>
+
+          <div className="absolute inset-0 flex items-center justify-center bg-black">
+            {founder.videoUrl ? (
+              <>
+                <video
+                  ref={(el) => (videoRefs.current[index] = el)}
+                  src={founder.videoUrl}
+                  poster={founder.videoPoster}
+                  className="w-full h-full"
+                  style={{
+                    objectFit: 'contain'
+                  }}
+                  muted={isMuted}
+                  loop
+                  playsInline
+                  preload="metadata"
+                  data-testid="video-player"
+                  onError={(e) => {
+                    console.error("Video load error:", e);
+                  }}
+                  onPlay={() => setPlayingStates(prev => ({ ...prev, [index]: true }))}
+                  onPause={() => setPlayingStates(prev => ({ ...prev, [index]: false }))}
+                />
+                <div 
+                  className="absolute inset-0 cursor-pointer z-[2]"
+                  onClick={(e) => {
+                    handleDoubleTap(e);
+                    togglePlay(e, index);
+                  }}
+                />
+              </>
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                <div className="text-white/60 text-center p-4">
+                  <Play className="w-16 h-16 mx-auto mb-2 opacity-50" />
+                  <p>No video available</p>
+                </div>
+              </div>
+            )}
+            {!playingStates[index] && founder.videoUrl && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none z-[3]">
+                <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <Play className="w-10 h-10 text-white ml-1" />
+                </div>
+              </div>
+            )}
+            
+            {showLikeAnimation && index === currentIndex && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[4] animate-ping">
+                <Heart className="w-24 h-24 text-red-500 fill-red-500" />
+              </div>
+            )}
+          </div>
+
+          {index === currentIndex && (
+            <>
+              {/* Founder info - bottom left */}
+              <div className="absolute bottom-4 left-4 right-20 z-10 pb-safe" data-testid="founder-info-overlay">
+                <div className="flex items-start gap-3 mb-2">
+                  <Avatar className="h-10 w-10 border-2 border-white/50">
+                    <AvatarImage src={founder.avatar} />
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      {founder.name?.charAt(0) || '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <h3 className="font-display text-base font-semibold text-white">
+                      {founder.name}
+                    </h3>
+                    <p className="text-white/80 text-sm">{founder.company}</p>
+                  </div>
+                </div>
+                
+                {founder.title && (
+                  <div className="mb-2">
+                    <p className="text-white text-sm line-clamp-2">{founder.title}</p>
+                  </div>
+                )}
+                
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge variant="secondary" className="bg-white/20 text-white border-0 backdrop-blur-sm text-xs px-2 py-0.5">
+                    {founder.sector}
+                  </Badge>
+                  <Badge variant="secondary" className="bg-white/20 text-white border-0 backdrop-blur-sm text-xs px-2 py-0.5">
+                    {founder.stage}
+                  </Badge>
+                  <Badge variant="secondary" className="bg-white/20 text-white border-0 backdrop-blur-sm text-xs px-2 py-0.5">
+                    {founder.location}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Action buttons - bottom right */}
+              <div className="absolute right-3 bottom-4 z-10 flex flex-col gap-4 pb-safe" data-testid="action-buttons">
+                <div className="flex flex-col items-center">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className={`h-12 w-12 rounded-full backdrop-blur-sm border-0 transition-all ${
+                      likedVideos[founder.videoId]
+                        ? 'bg-red-500/90 text-white hover:bg-red-600'
+                        : 'bg-white/20 text-white hover:bg-white/30'
+                    }`}
+                    onClick={() => handleLikeToggle(founder.videoId)}
+                    data-testid="button-interested"
+                  >
+                    <Heart 
+                      className={`h-6 w-6 ${likedVideos[founder.videoId] ? 'fill-white' : ''}`} 
+                    />
+                  </Button>
+                  <span className="text-white text-xs mt-0.5 font-medium">
+                    {formatCount(likeCounts[founder.videoId] || 0)}
+                  </span>
+                </div>
+                
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-12 w-12 rounded-full bg-white/20 backdrop-blur-sm text-white border-0"
+                  onClick={() => handleAction("maybe")}
+                  data-testid="button-maybe"
+                >
+                  <Bookmark className="h-6 w-6" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-12 w-12 rounded-full bg-white/20 backdrop-blur-sm text-white border-0"
+                  onClick={() => handleAction("pass")}
+                  data-testid="button-pass"
+                >
+                  <X className="h-6 w-6" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-12 w-12 rounded-full bg-white/20 backdrop-blur-sm text-white border-0"
+                  onClick={() => onInfo?.(founder.id)}
+                  data-testid="button-info"
+                >
+                  <Info className="h-6 w-6" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-12 w-12 rounded-full bg-white/20 backdrop-blur-sm text-white/70 border-0 hover:text-white"
+                  onClick={() => onReport?.(founder.id, founder.videoId)}
+                  data-testid="button-report"
+                >
+                  <Flag className="h-5 w-5" />
+                </Button>
+              </div>
+
+              {/* Mute button - top right */}
+              <div className="absolute top-4 right-3 z-10">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm text-white border-0"
+                  onClick={toggleMute}
+                  data-testid="button-mute"
+                >
+                  {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      ))}
 
       <AlertDialog open={showPassConfirm} onOpenChange={setShowPassConfirm}>
         <AlertDialogContent data-testid="pass-confirm-dialog">
           <AlertDialogHeader>
             <AlertDialogTitle>Pass on this founder?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. You will no longer see {currentFounder?.company || "this founder"} in your feed.
+              This action cannot be undone. You will no longer see {founders[currentIndex]?.company || "this founder"} in your feed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
