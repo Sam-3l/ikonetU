@@ -63,6 +63,7 @@ interface AdminVideo {
   status: "processing" | "active" | "rejected" | "archived";
   is_current: boolean;
   view_count: number;
+  like_count: number;
   created_at: string;
   founder: {
     id: string;
@@ -371,7 +372,7 @@ export default function AdminPanel() {
                             by {video.founder.name} • {video.duration}s
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {new Date(video.created_at).toLocaleString()}
+                            {new Date(video.created_at).toLocaleString()} • {video.view_count} views • {video.like_count} likes
                           </p>
                         </div>
                         {getStatusBadge(video.status)}
