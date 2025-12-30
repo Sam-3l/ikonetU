@@ -63,33 +63,39 @@ export default function VideoFeed({
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
   const [viewedVideos, setViewedVideos] = useState<Set<string>>(new Set());
+  const [loadingStates, setLoadingStates] = useState<Record<number, boolean>>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
   const isScrolling = useRef(false);
   const touchStartY = useRef(0);
   const lastTap = useRef(0);
+  const isDoubleTapping = useRef(false);
 
-  // Create a stable key from the data that matters
-  const foundersDataKey = React.useMemo(() =>
-    founders.map(f => `${f.videoId}-${f.isLiked}-${f.likeCount}-${f.viewCount}`).join('|'),
-    [founders]
-  );
+  // Remove the useMemo and the existing useEffect, replace with this:
+  const lastSyncedData = useRef<string>('');
 
   React.useEffect(() => {
-      const initialLikes: Record<string, boolean> = {};
-      const initialLikeCounts: Record<string, number> = {};
-      const initialViewCounts: Record<string, number> = {};
-      
-      founders.forEach(founder => {
-        initialLikes[founder.videoId] = founder.isLiked || false;
-        initialLikeCounts[founder.videoId] = founder.likeCount || 0;
-        initialViewCounts[founder.videoId] = founder.viewCount || 0;
-      });
-      
-      setLikedVideos(initialLikes);
-      setLikeCounts(initialLikeCounts);
-      setViewCounts(initialViewCounts);
-    }, [foundersDataKey]); // Will trigger whenever the actual data changes
+    // Create a fingerprint of the current data
+    const currentDataKey = founders.map(f => 
+      `${f.videoId}-${f.isLiked}-${f.likeCount}-${f.viewCount}`
+    ).join('|');
+    
+    // Always update state when founders prop changes, regardless of key
+    const initialLikes: Record<string, boolean> = {};
+    const initialLikeCounts: Record<string, number> = {};
+    const initialViewCounts: Record<string, number> = {};
+    
+    founders.forEach(founder => {
+      initialLikes[founder.videoId] = founder.isLiked || false;
+      initialLikeCounts[founder.videoId] = founder.likeCount || 0;
+      initialViewCounts[founder.videoId] = founder.viewCount || 0;
+    });
+    
+    setLikedVideos(initialLikes);
+    setLikeCounts(initialLikeCounts);
+    setViewCounts(initialViewCounts);
+    lastSyncedData.current = currentDataKey;
+  }, [founders, founders.length]); // Trigger on founders change OR length change
 
   // Auto-play current video and pause others
   React.useEffect(() => {
@@ -322,19 +328,24 @@ export default function VideoFeed({
   };
 
   const handleDoubleTap = (e: React.MouseEvent) => {
-    const now = Date.now();
-    const DOUBLE_TAP_DELAY = 300;
-    
-    if (now - lastTap.current < DOUBLE_TAP_DELAY) {
-      e.stopPropagation();
-      e.preventDefault(); // Prevent any other action
-      handleLikeToggle(founders[currentIndex].videoId, 'like');
-      lastTap.current = 0; // Reset to prevent triple tap issues
-      return true; // Indicate double tap occurred
-    } else {
-      lastTap.current = now;
-      return false; // Not a double tap
-    }
+      const now = Date.now();
+      const DOUBLE_TAP_DELAY = 300;
+      
+      if (now - lastTap.current < DOUBLE_TAP_DELAY) {
+        e.stopPropagation();
+        e.preventDefault();
+        isDoubleTapping.current = true;
+        handleLikeToggle(founders[currentIndex].videoId, 'like');
+        
+        // Reset the double tap flag after a delay
+        setTimeout(() => {
+          isDoubleTapping.current = false;
+        }, 400);
+        
+        lastTap.current = 0;
+      } else {
+        lastTap.current = now;
+      }
   };
 
   const toggleMute = () => {
@@ -408,24 +419,50 @@ export default function VideoFeed({
                   playsInline
                   preload="metadata"
                   data-testid="video-player"
+                  onLoadStart={() => {
+                    setLoadingStates(prev => ({ ...prev, [index]: true }));
+                  }}
+                  onLoadedData={() => {
+                    setLoadingStates(prev => ({ ...prev, [index]: false }));
+                  }}
+                  onCanPlay={() => {
+                    setLoadingStates(prev => ({ ...prev, [index]: false }));
+                  }}
                   onError={(e) => {
                     console.error("Video load error:", e);
+                    setLoadingStates(prev => ({ ...prev, [index]: false }));
                   }}
                   onPlay={() => setPlayingStates(prev => ({ ...prev, [index]: true }))}
                   onPause={() => setPlayingStates(prev => ({ ...prev, [index]: false }))}
                 />
+
+                {/* Loading overlay - show while video is loading */}
+                {loadingStates[index] && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-[5]">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+                      <p className="text-white text-sm font-medium">Loading video...</p>
+                    </div>
+                  </div>
+                )}
+
                 <div 
                   className="absolute inset-0 cursor-pointer z-[2]"
                   onClick={(e) => {
-                    const wasDoubleTap = handleDoubleTap(e);
-                    if (!wasDoubleTap) {
-                      // Only toggle play if it wasn't a double tap
-                      setTimeout(() => {
-                        if (Date.now() - lastTap.current > 300) {
-                          togglePlay(e, index);
-                        }
-                      }, 310); // Wait slightly longer than double tap delay
+                    if (isDoubleTapping.current) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      return; // Don't do anything if it's part of a double tap
                     }
+                    
+                    handleDoubleTap(e);
+                    
+                    // Only play/pause if not in the middle of a potential double tap
+                    setTimeout(() => {
+                      if (!isDoubleTapping.current && Date.now() - lastTap.current > 300) {
+                        togglePlay(e, index);
+                      }
+                    }, 320);
                   }}
                 />
               </>

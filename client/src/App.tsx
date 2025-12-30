@@ -59,6 +59,8 @@ function DiscoverPage() {
 
   const { data: videos, isLoading } = useQuery<VideoWithFounder[]>({
     queryKey: ["/api/videos/feed/"],
+    staleTime: 0, // Consider data stale immediately
+    refetchOnMount: 'always', // Always refetch on mount
   });
 
   const signalMutation = useMutation({
@@ -78,6 +80,7 @@ function DiscoverPage() {
         }
       }
       queryClient.invalidateQueries({ queryKey: ["/api/matches"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/videos/feed/"] }); // ADD THIS
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -90,6 +93,8 @@ function DiscoverPage() {
         double_tap: isDoubleTap
       });
       await res.json();
+      // Invalidate the feed query to refetch fresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/videos/feed/"] });
     } catch (error) {
       console.error("Failed to toggle like:", error);
       throw error;
