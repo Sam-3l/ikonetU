@@ -4,6 +4,7 @@ import { Heart, Bookmark, X, Info, Volume2, VolumeX, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import BrandLoader from "@/components/BrandLoader";
 import { Flag } from "lucide-react";
 import {
   AlertDialog,
@@ -71,7 +72,6 @@ export default function VideoFeed({
   const lastTap = useRef(0);
   const isDoubleTapping = useRef(false);
 
-  // Remove the useMemo and the existing useEffect, replace with this:
   const lastSyncedData = useRef<string>('');
 
   React.useEffect(() => {
@@ -439,10 +439,7 @@ export default function VideoFeed({
                 {/* Loading overlay - show while video is loading */}
                 {loadingStates[index] && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-[5]">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin" />
-                      <p className="text-white text-sm font-medium">Loading video...</p>
-                    </div>
+                    <BrandLoader text="Loading video..." size="lg" />
                   </div>
                 )}
 
