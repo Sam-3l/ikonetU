@@ -36,6 +36,7 @@ export default defineConfig({
     target: 'esnext'
   },
   server: {
+    port: 8088,
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
     },

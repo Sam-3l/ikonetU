@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient, apiRequest } from "./lib/queryClient";
+import { api } from "./lib/apiClient";
 import { QueryClientProvider, useQuery, useMutation } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -34,19 +35,71 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import type { Video, FounderProfile as FounderProfileType, InvestorProfile as InvestorProfileType, Match, Message, Signal } from "@shared/schema";
 
-interface VideoWithFounder extends Video {
+
+interface VideoWithFounder {
+  id: string;
+  founderId: string;
+  url: string;
+  thumbnailUrl: string;
+  title: string;
+  duration: number;
+  status: string;
+  viewCount: number;
+  likeCount: number;
+  isLiked: boolean;
   founder: {
-    profile: FounderProfileType | null;
-    user: { id: string; name: string; avatarUrl: string | null } | null;
+    user: {
+      id: string;
+      name: string;
+      avatarUrl: string | null;
+    } | null;
+    profile: {
+      companyName: string;
+      sector: string;
+      stage: string;
+      location: string;
+      bio: string;
+    } | null;
   };
 }
 
-interface MatchWithDetails extends Match {
+interface MatchWithDetails {
+  id: string;
   isActive: boolean;
-  otherUser: { id: string; name: string; avatarUrl: string | null; role: string } | null;
-  otherProfile: FounderProfileType | InvestorProfileType | null;
-  lastMessage: Message | null;
+  createdAt: string;
+  otherUser: {
+    id: string;
+    name: string;
+    avatarUrl: string | null;
+    role: string;
+  } | null;
+  otherProfile: {
+    companyName?: string;
+    firmName?: string;
+    sector?: string;
+    stage?: string;
+    title?: string;
+    sectors?: string[];
+    stages?: string[];
+  } | null;
+  lastMessage: {
+    id: string;
+    content: string;
+    senderId: string;
+    status: string;
+    createdAt: string;
+  } | null;
   unreadCount: number;
+}
+
+interface Message {
+  id: string;
+  senderId: string;
+  content: string;
+  status: string;
+  deliveredAt?: string;
+  readAt?: string;
+  createdAt: string;
 }
 
 function DiscoverPage() {
@@ -57,19 +110,21 @@ function DiscoverPage() {
   const [showReport, setShowReport] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ videoId: string; founderId: string; name: string } | null>(null);
 
+  // Fetch video feed using new api client
   const { data: videos, isLoading } = useQuery<VideoWithFounder[]>({
     queryKey: ["/api/videos/feed/"],
-    staleTime: 0, // Consider data stale immediately
-    refetchOnMount: 'always', // Always refetch on mount
+    queryFn: () => api.get<VideoWithFounder[]>("/api/videos/feed/"),
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
+  // Create signal mutation
   const signalMutation = useMutation({
     mutationFn: async (data: { founderId: string; videoId: string; type: "interested" | "maybe" | "pass" }) => {
-      const res = await apiRequest("POST", "/api/signals", data);
-      return res.json();
+      return api.post("/api/signals/", data);
     },
-    onSuccess: (_, variables) => {
-      if (variables.type === "interested") {
+    onSuccess: (response: any, variables) => {
+      if (response.matchCreated && variables.type === "interested") {
         const video = videos?.find(v => v.founderId === variables.founderId);
         if (video) {
           setMatchedFounder({
@@ -79,21 +134,14 @@ function DiscoverPage() {
           setShowMatch(true);
         }
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/matches"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/videos/feed/"] }); // ADD THIS
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      queryClient.invalidateQueries({ queryKey: ["/api/matches/"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/videos/feed/"] });
     },
   });
 
   const handleLike = async (videoId: string, isDoubleTap: boolean = false) => {
     try {
-      const res = await apiRequest("POST", `/api/videos/${videoId}/like/`, {
-        double_tap: isDoubleTap
-      });
-      await res.json();
-      // Invalidate the feed query to refetch fresh data
+      await api.post(`/api/videos/${videoId}/like/`, { doubleTap: isDoubleTap });
       queryClient.invalidateQueries({ queryKey: ["/api/videos/feed/"] });
     } catch (error) {
       console.error("Failed to toggle like:", error);
@@ -103,36 +151,29 @@ function DiscoverPage() {
 
   const handleView = async (videoId: string) => {
     try {
-      const res = await apiRequest("POST", `/api/videos/${videoId}/track-view/`);
-      await res.json();
+      await api.post(`/api/videos/${videoId}/track-view/`);
     } catch (error) {
       console.error("Failed to track view:", error);
     }
   };
 
-  const founders = videos?.map(video => {
-    // Backend returns snake_case fields
-    const founderData = video.founder || {};
-    const userData = founderData.user || {};
-    const profileData = founderData.profile || {};
-    
-    return {
-      id: video.founder_id,
-      name: userData.name || "Unknown",
-      avatar: userData.avatar_url || undefined,
-      company: profileData.company_name || "Unknown Company",
-      sector: profileData.sector || "Tech",
-      stage: profileData.stage || "Seed",
-      location: profileData.location || "Unknown",
-      videoUrl: video.url,
-      videoPoster: video.thumbnail_url || undefined,
-      videoId: video.id,
-      title: video.title,
-      viewCount: video.view_count || 0,
-      likeCount: video.like_count || 0,
-      isLiked: video.is_liked || false,
-    };
-  }) || [];
+  // Transform videos for VideoFeed
+  const founders = videos?.map(video => ({
+    id: video.founderId,
+    name: video.founder?.user?.name || "Unknown",
+    avatar: video.founder?.user?.avatarUrl || undefined,
+    company: video.founder?.profile?.companyName || "Unknown Company",
+    sector: video.founder?.profile?.sector || "Tech",
+    stage: video.founder?.profile?.stage || "Seed",
+    location: video.founder?.profile?.location || "Unknown",
+    videoUrl: video.url,
+    videoPoster: video.thumbnailUrl || undefined,
+    videoId: video.id,
+    title: video.title,
+    viewCount: video.viewCount || 0,
+    likeCount: video.likeCount || 0,
+    isLiked: video.isLiked || false,
+  })) || [];
 
   if (isLoading) {
     return (
@@ -150,19 +191,19 @@ function DiscoverPage() {
       <VideoFeed
         founders={founders}
         onInterested={(founderId) => {
-          const video = videos?.find(v => v.founder_id === founderId);
+          const video = videos?.find(v => v.founderId === founderId);
           if (video) {
             signalMutation.mutate({ founderId, videoId: video.id, type: "interested" });
           }
         }}
         onMaybe={(founderId) => {
-          const video = videos?.find(v => v.founder_id === founderId);
+          const video = videos?.find(v => v.founderId === founderId);
           if (video) {
             signalMutation.mutate({ founderId, videoId: video.id, type: "maybe" });
           }
         }}
         onPass={(founderId) => {
-          const video = videos?.find(v => v.founder_id === founderId);
+          const video = videos?.find(v => v.founderId === founderId);
           if (video) {
             signalMutation.mutate({ founderId, videoId: video.id, type: "pass" });
           }
@@ -208,46 +249,68 @@ function MessagesPage() {
   const { toast } = useToast();
 
   const { data: matches, isLoading } = useQuery<MatchWithDetails[]>({
-    queryKey: ["/api/matches"],
+    queryKey: ["/api/matches/"],
+    queryFn: () => api.get<MatchWithDetails[]>("/api/matches/"),
+    refetchInterval: 10000,
   });
 
-  const { data: messages, refetch: refetchMessages } = useQuery<Message[]>({
-    queryKey: ["/api/matches", selectedMatchId, "messages"],
+  const { data: messagesData, refetch: refetchMessages } = useQuery<Message[]>({
+    queryKey: [`/api/matches/${selectedMatchId}/messages/`],
+    queryFn: () => api.get<Message[]>(`/api/matches/${selectedMatchId}/messages/`),
     enabled: !!selectedMatchId,
+    refetchInterval: 5000,
   });
 
   const sendMessageMutation = useMutation({
     mutationFn: async ({ matchId, content }: { matchId: string; content: string }) => {
-      const res = await apiRequest("POST", `/api/matches/${matchId}/messages`, { content });
-      return res.json();
+      return api.post<Message>(`/api/matches/${matchId}/messages/send/`, { content });
     },
     onSuccess: () => {
       refetchMessages();
-      queryClient.invalidateQueries({ queryKey: ["/api/matches"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/matches/"] });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
+  const markReadMutation = useMutation({
+    mutationFn: async (matchId: string) => {
+      return api.put(`/api/matches/${matchId}/messages/mark-read/`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/matches/"] });
+    },
+  });
+
+  const handleSelectChat = (matchId: string) => {
+    setSelectedMatchId(matchId);
+    markReadMutation.mutate(matchId);
+  };
+
+  // ONLY show ACTIVE matches in messages
   const activeMatches = matches?.filter(m => m.isActive) || [];
 
   const chats = activeMatches.map(match => ({
     id: match.id,
     name: match.otherUser?.name || "Unknown",
     avatar: match.otherUser?.avatarUrl || undefined,
-    lastMessage: match.lastMessage?.content || "No messages yet",
-    timestamp: match.lastMessage ? new Date(match.lastMessage.createdAt!).toLocaleString() : "",
+    lastMessage: match.lastMessage?.content || "Start a conversation",
+    timestamp: match.lastMessage 
+      ? new Date(match.lastMessage.createdAt).toLocaleString()
+      : "",
     unreadCount: match.unreadCount,
     isOnline: false,
   }));
 
   const selectedMatch = activeMatches.find(m => m.id === selectedMatchId);
-  const formattedMessages = messages?.map(m => ({
+
+  const formattedMessages = messagesData?.map(m => ({
     id: m.id,
     content: m.content,
-    senderId: m.senderId === user?.id ? "me" : "other",
-    timestamp: new Date(m.createdAt!).toLocaleTimeString(),
+    senderId: m.senderId,
+    timestamp: new Date(m.createdAt).toLocaleTimeString(),
+    status: m.status,
   })) || [];
 
   if (isLoading) {
@@ -258,24 +321,44 @@ function MessagesPage() {
     );
   }
 
+  // Show message if no active matches
+  if (activeMatches.length === 0) {
+    return (
+      <div className="h-[calc(100vh-4rem)] pb-16 md:pb-0 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <p className="text-muted-foreground">No active conversations yet</p>
+          <Button onClick={() => window.location.href = "/matches"}>
+            View Matches
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-[calc(100vh-4rem)] pb-16 md:pb-0 flex">
       <div className={`w-full md:w-80 border-r border-border ${selectedMatchId ? "hidden md:block" : ""}`}>
         <div className="p-4 border-b border-border">
           <h2 className="font-display text-lg font-semibold">Messages</h2>
         </div>
-        <ChatList chats={chats} selectedChatId={selectedMatchId || undefined} onSelectChat={setSelectedMatchId} />
+        <ChatList 
+          chats={chats} 
+          selectedChatId={selectedMatchId || undefined} 
+          onSelectChat={handleSelectChat} 
+        />
       </div>
       <div className={`flex-1 ${!selectedMatchId ? "hidden md:flex" : "flex"}`}>
         {selectedMatchId && selectedMatch ? (
           <ChatView
             chatId={selectedMatchId}
             recipientName={selectedMatch.otherUser?.name || ""}
-            currentUserId="me"
+            recipientAvatar={selectedMatch.otherUser?.avatarUrl || undefined}
+            currentUserId={user?.id || ""}
             messages={formattedMessages}
             onSendMessage={(content) => sendMessageMutation.mutate({ matchId: selectedMatchId, content })}
             onBack={() => setSelectedMatchId(null)}
             canSendMessages={selectedMatch.isActive}
+            useWebSocket={true}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
@@ -293,17 +376,33 @@ function MatchesPage() {
   const [, setLocation] = useLocation();
 
   const { data: matches, isLoading } = useQuery<MatchWithDetails[]>({
-    queryKey: ["/api/matches"],
+    queryKey: ["/api/matches/"],
+    queryFn: () => api.get<MatchWithDetails[]>("/api/matches/"),
   });
 
   const acceptMatchMutation = useMutation({
     mutationFn: async (matchId: string) => {
-      const res = await apiRequest("POST", `/api/matches/${matchId}/accept`);
-      return res.json();
+      return api.post(`/api/matches/${matchId}/accept/`, {});
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/matches"] });
-      toast({ title: "Match accepted!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/matches/"] });
+      toast({ title: "Match accepted! You can now message them." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const rejectMatchMutation = useMutation({
+    mutationFn: async (matchId: string) => {
+      return api.post(`/api/matches/${matchId}/reject/`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/matches/"] });
+      toast({ title: "Match rejected" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -323,25 +422,54 @@ function MatchesPage() {
 
   return (
     <div className="p-4 md:p-8 pb-20 md:pb-8 space-y-8">
+      {/* Pending Matches - Need Action */}
       {pendingMatches.length > 0 && (
         <div>
-          <h2 className="font-display text-xl font-semibold mb-4">Pending Matches</h2>
+          <h2 className="font-display text-xl font-semibold mb-4">
+            New Matches - Action Required
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {pendingMatches.map((match) => (
               <Card key={match.id} className="overflow-visible">
                 <CardContent className="p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
-                      {match.otherUser?.name?.charAt(0) || "?"}
-                    </div>
-                    <div>
-                      <h3 className="font-medium">{match.otherUser?.name}</h3>
-                      <p className="text-sm text-muted-foreground">{match.otherUser?.role}</p>
+                  <div className="flex items-center gap-3 mb-4">
+                    {match.otherUser?.avatarUrl ? (
+                      <img 
+                        src={match.otherUser.avatarUrl} 
+                        alt={match.otherUser.name}
+                        className="h-12 w-12 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+                        {match.otherUser?.name?.charAt(0) || "?"}
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <h3 className="font-medium">{match.otherUser?.name || "Unknown"}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {match.otherProfile?.companyName || "Founder"}
+                      </p>
                     </div>
                   </div>
-                  <Button className="w-full" size="sm" onClick={() => acceptMatchMutation.mutate(match.id)}>
-                    Accept Match
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      className="flex-1" 
+                      size="sm" 
+                      onClick={() => acceptMatchMutation.mutate(match.id)}
+                      disabled={acceptMatchMutation.isPending}
+                    >
+                      Accept
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="flex-1" 
+                      size="sm" 
+                      onClick={() => rejectMatchMutation.mutate(match.id)}
+                      disabled={rejectMatchMutation.isPending}
+                    >
+                      Reject
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -349,32 +477,60 @@ function MatchesPage() {
         </div>
       )}
 
+      {/* Active Matches */}
       <div>
-        <h1 className="font-display text-2xl font-bold mb-6">Your Matches</h1>
+        <h1 className="font-display text-2xl font-bold mb-6">Active Conversations</h1>
         {activeMatches.length === 0 ? (
           <Card className="overflow-visible">
             <CardContent className="p-8 text-center">
-              <p className="text-muted-foreground">No active matches yet. Keep discovering founders!</p>
+              <p className="text-muted-foreground">
+                {pendingMatches.length > 0 
+                  ? "Accept a match above to start messaging"
+                  : "No matches yet. Keep swiping!"}
+              </p>
             </CardContent>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {activeMatches.map((match) => (
-              <Card key={match.id} className="overflow-visible hover-elevate cursor-pointer" onClick={() => setLocation("/messages")}>
+              <Card 
+                key={match.id} 
+                className="overflow-visible hover-elevate cursor-pointer" 
+                onClick={() => setLocation("/messages")}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
-                      {match.otherUser?.name?.charAt(0) || "?"}
-                    </div>
-                    <div>
-                      <h3 className="font-medium">{match.otherUser?.name}</h3>
-                      <p className="text-sm text-muted-foreground">{match.otherUser?.role}</p>
+                    {match.otherUser?.avatarUrl ? (
+                      <img 
+                        src={match.otherUser.avatarUrl} 
+                        alt={match.otherUser.name}
+                        className="h-12 w-12 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+                        {match.otherUser?.name?.charAt(0) || "?"}
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <h3 className="font-medium">{match.otherUser?.name || "Unknown"}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {match.otherProfile?.companyName || "Founder"}
+                      </p>
                     </div>
                   </div>
-                  {match.unreadCount > 0 && (
-                    <div className="text-sm text-primary">{match.unreadCount} unread messages</div>
+                  {match.lastMessage && (
+                    <p className="text-sm text-muted-foreground mb-2 line-clamp-1">
+                      {match.lastMessage.content}
+                    </p>
                   )}
-                  <Button className="w-full mt-3" size="sm">Start Chat</Button>
+                  {match.unreadCount > 0 && (
+                    <div className="text-sm text-primary font-medium">
+                      {match.unreadCount} unread message{match.unreadCount > 1 ? 's' : ''}
+                    </div>
+                  )}
+                  <Button className="w-full mt-3" size="sm">
+                    Message
+                  </Button>
                 </CardContent>
               </Card>
             ))}

@@ -172,6 +172,12 @@ export default function VideoFeed({
     if (newLikedState) {
       setShowLikeAnimation(true);
       setTimeout(() => setShowLikeAnimation(false), 1000);
+      
+      // Trigger interested action when liking
+      const currentFounder = founders.find(f => f.videoId === videoId);
+      if (currentFounder) {
+        onInterested?.(currentFounder.id);
+      }
     }
     
     if (onLike) {
