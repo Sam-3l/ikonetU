@@ -60,18 +60,23 @@ export default function ChatList({ chats, selectedChatId, onSelectChat }: ChatLi
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2 mb-1">
                 <span className="font-medium truncate">{chat.name}</span>
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {chat.timestamp}
-                </span>
+                {chat.timestamp && (
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {chat.timestamp}
+                  </span>
+                )}
               </div>
-              <p className="text-sm text-muted-foreground truncate">{chat.lastMessage}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm text-muted-foreground truncate flex-1">
+                  {chat.lastMessage}
+                </p>
+                {(chat.unreadCount ?? 0) > 0 && (
+                  <Badge className="h-5 min-w-[20px] shrink-0 rounded-full px-1.5 text-xs font-semibold">
+                    {chat.unreadCount > 99 ? '99+' : chat.unreadCount}
+                  </Badge>
+                )}
+              </div>
             </div>
-
-            {chat.unreadCount && chat.unreadCount > 0 && (
-              <Badge className="h-5 min-w-[20px] rounded-full px-1.5 text-xs">
-                {chat.unreadCount}
-              </Badge>
-            )}
           </button>
         ))}
       </div>

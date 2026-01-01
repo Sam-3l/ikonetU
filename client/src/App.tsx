@@ -26,6 +26,7 @@ import LegalAcceptance from "@/components/LegalAcceptance";
 import AdminPanel from "@/components/AdminPanel";
 import VideoHistory from "@/components/VideoHistory";
 import ReportDialog from "@/components/ReportDialog";
+import PublicProfile from "@/components/PublicProfile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -258,7 +259,7 @@ function MessagesPage() {
     queryKey: [`/api/matches/${selectedMatchId}/messages/`],
     queryFn: () => api.get<Message[]>(`/api/matches/${selectedMatchId}/messages/`),
     enabled: !!selectedMatchId,
-    refetchInterval: 5000,
+    refetchInterval: 2000,
   });
 
   const sendMessageMutation = useMutation({
@@ -297,7 +298,11 @@ function MessagesPage() {
     avatar: match.otherUser?.avatarUrl || undefined,
     lastMessage: match.lastMessage?.content || "Start a conversation",
     timestamp: match.lastMessage 
-      ? new Date(match.lastMessage.createdAt).toLocaleString()
+      ? new Date(match.lastMessage.createdAt).toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true 
+        })
       : "",
     unreadCount: match.unreadCount,
     isOnline: false,
@@ -309,8 +314,8 @@ function MessagesPage() {
     id: m.id,
     content: m.content,
     senderId: m.senderId,
-    timestamp: new Date(m.createdAt).toLocaleTimeString(),
-    status: m.status,
+    timestamp: m.createdAt,
+    status: m.status as 'sent' | 'delivered' | 'read',
   })) || [];
 
   if (isLoading) {
@@ -336,8 +341,9 @@ function MessagesPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] pb-16 md:pb-0 flex">
-      <div className={`w-full md:w-80 border-r border-border ${selectedMatchId ? "hidden md:block" : ""}`}>
+    <div className="h-[calc(100vh-4rem)] pb-16 md:pb-0 flex w-full">
+      {/* Chat List Sidebar */}
+      <div className={`w-full md:w-80 xl:w-96 border-r border-border flex-shrink-0 ${selectedMatchId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}>
         <div className="p-4 border-b border-border">
           <h2 className="font-display text-lg font-semibold">Messages</h2>
         </div>
@@ -347,7 +353,9 @@ function MessagesPage() {
           onSelectChat={handleSelectChat} 
         />
       </div>
-      <div className={`flex-1 ${!selectedMatchId ? "hidden md:flex" : "flex"}`}>
+      
+      {/* Chat View - Takes ALL remaining space */}
+      <div className={`flex-1 min-w-0 ${!selectedMatchId ? "hidden md:flex" : "flex"}`}>
         {selectedMatchId && selectedMatch ? (
           <ChatView
             chatId={selectedMatchId}
@@ -361,7 +369,7 @@ function MessagesPage() {
             useWebSocket={true}
           />
         ) : (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
+          <div className="flex-1 flex items-center justify-center text-muted-foreground bg-background">
             <p>Select a conversation to start messaging</p>
           </div>
         )}
@@ -432,7 +440,10 @@ function MatchesPage() {
             {pendingMatches.map((match) => (
               <Card key={match.id} className="overflow-visible">
                 <CardContent className="p-4">
-                  <div className="flex items-center gap-3 mb-4">
+                  <div 
+                    className="flex items-center gap-3 mb-4 cursor-pointer"
+                    onClick={() => setLocation(`/user/${match.otherUser?.id}`)}
+                  >
                     {match.otherUser?.avatarUrl ? (
                       <img 
                         src={match.otherUser.avatarUrl} 
@@ -455,7 +466,10 @@ function MatchesPage() {
                     <Button 
                       className="flex-1" 
                       size="sm" 
-                      onClick={() => acceptMatchMutation.mutate(match.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        acceptMatchMutation.mutate(match.id);
+                      }}
                       disabled={acceptMatchMutation.isPending}
                     >
                       Accept
@@ -464,7 +478,10 @@ function MatchesPage() {
                       variant="outline" 
                       className="flex-1" 
                       size="sm" 
-                      onClick={() => rejectMatchMutation.mutate(match.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        rejectMatchMutation.mutate(match.id);
+                      }}
                       disabled={rejectMatchMutation.isPending}
                     >
                       Reject
@@ -495,8 +512,8 @@ function MatchesPage() {
             {activeMatches.map((match) => (
               <Card 
                 key={match.id} 
-                className="overflow-visible hover-elevate cursor-pointer" 
-                onClick={() => setLocation("/messages")}
+                className="overflow-visible hover-elevate cursor-pointer"
+                onClick={() => setLocation(`/user/${match.otherUser?.id}`)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3 mb-3">
@@ -524,11 +541,18 @@ function MatchesPage() {
                     </p>
                   )}
                   {match.unreadCount > 0 && (
-                    <div className="text-sm text-primary font-medium">
+                    <div className="text-sm text-primary font-medium mb-2">
                       {match.unreadCount} unread message{match.unreadCount > 1 ? 's' : ''}
                     </div>
                   )}
-                  <Button className="w-full mt-3" size="sm">
+                  <Button 
+                    className="w-full mt-3" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLocation("/messages");
+                    }}
+                  >
                     Message
                   </Button>
                 </CardContent>
@@ -942,6 +966,101 @@ function AdminPage() {
   );
 }
 
+function PublicProfilePage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const [, params] = useLocation();
+  
+  // Extract userId from URL path (e.g., /user/123)
+  const userId = window.location.pathname.split('/user/')[1];
+
+  const { data: profileData, isLoading } = useQuery({
+    queryKey: [`/api/user/${userId}/profile`],
+    queryFn: () => api.get(`/api/user/${userId}/profile`),
+    enabled: !!userId,
+  });
+
+  const handleLike = async (videoId: string) => {
+    try {
+      await api.post(`/api/videos/${videoId}/like/`, { doubleTap: false });
+      queryClient.invalidateQueries({ queryKey: [`/api/user/${userId}/profile`] });
+    } catch (error) {
+      console.error("Failed to toggle like:", error);
+      throw error;
+    }
+  };
+
+  const handleView = async (videoId: string) => {
+    try {
+      await api.post(`/api/videos/${videoId}/track-view/`);
+    } catch (error) {
+      console.error("Failed to track view:", error);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Skeleton className="h-12 w-12 rounded-full" />
+      </div>
+    );
+  }
+
+  if (!profileData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">Profile not found</p>
+          <Button className="mt-4" onClick={() => setLocation("/")}>
+            Back to Discover
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const isFounder = profileData.role === "founder";
+  const founderProfile = profileData.founderProfile;
+  const investorProfile = profileData.investorProfile;
+  const currentVideo = profileData.currentVideo;
+
+  return (
+    <PublicProfile
+      userId={userId}
+      userType={profileData.role}
+      name={profileData.name}
+      avatar={profileData.avatarUrl}
+      location={isFounder ? founderProfile?.location : investorProfile?.location || ""}
+      bio={isFounder ? founderProfile?.bio : investorProfile?.thesis || ""}
+      
+      // Founder specific
+      companyName={founderProfile?.company_name}
+      sector={founderProfile?.sector}
+      stage={founderProfile?.stage}
+      videoUrl={currentVideo?.url}
+      videoThumbnail={currentVideo?.thumbnailUrl}
+      videoTitle={currentVideo?.title}
+      videoId={currentVideo?.id}
+      viewCount={currentVideo?.viewCount}
+      likeCount={currentVideo?.likeCount}
+      isLiked={currentVideo?.isLiked}
+      
+      // Investor specific
+      firmName={investorProfile?.firm_name}
+      title={investorProfile?.title}
+      thesis={investorProfile?.thesis}
+      sectors={investorProfile?.sectors}
+      stages={investorProfile?.stages}
+      supportTypes={investorProfile?.support_types}
+      
+      onBack={() => window.history.back()}
+      onLike={user?.role === "investor" && isFounder ? handleLike : undefined}
+      onView={handleView}
+    />
+  );
+}
+
 function MainApp() {
   const { user, isLoading, isAuthenticated, login, register, logout } = useAuth();
   const { toast } = useToast();
@@ -963,6 +1082,30 @@ function MainApp() {
       setShowOnboarding(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    // Sync activeTab with current location
+    const path = window.location.pathname;
+    
+    if (path === "/" || path === "/discover") {
+      setActiveTab("discover");
+    } else if (path === "/messages") {
+      setActiveTab("messages");
+    } else if (path === "/matches") {
+      setActiveTab("matches");
+    } else if (path === "/profile") {
+      setActiveTab("profile");
+    } else if (path === "/dashboard") {
+      setActiveTab("profile");
+    } else if (path === "/videos") {
+      setActiveTab("profile");
+    } else if (path.startsWith("/user/")) {
+      setActiveTab("");
+    } else if (path === "/search") {
+      setActiveTab("search");
+    }    
+    // For any other paths not in nav, don't change activeTab
+  }, [window.location.pathname]);
 
   const handleLogin = async (email: string, password: string) => {
     try {
@@ -986,7 +1129,7 @@ function MainApp() {
     else if (tab === "messages") setLocation("/messages");
     else if (tab === "matches") setLocation("/matches");
     else if (tab === "profile") setLocation("/profile");
-    else if (tab === "search") setLocation("/");
+    else if (tab === "search") setLocation("/search");
     else if (tab === "admin") setLocation("/admin");
   };
 
@@ -1030,6 +1173,7 @@ function MainApp() {
           <Route path="/matches" component={MatchesPage} />
           <Route path="/dashboard" component={DashboardPage} />
           <Route path="/profile" component={ProfilePage} />
+          <Route path="/user/:id" component={PublicProfilePage} />
           <Route path="/videos" component={() => (
             <div className="p-4 md:p-8 pb-20 md:pb-8">
               <h1 className="font-display text-2xl font-bold mb-6">My Videos</h1>
