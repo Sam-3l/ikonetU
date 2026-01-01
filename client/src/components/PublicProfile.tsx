@@ -89,7 +89,8 @@ export default function PublicProfile({
     }
   };
 
-  const toggleMute = () => {
+  const toggleMute = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     if (videoRef.current) {
       videoRef.current.muted = !isMuted;
       setIsMuted(!isMuted);
@@ -246,9 +247,10 @@ export default function PublicProfile({
                   </Button>
                 </div>
 
-                {/* Click to play/pause */}
+                {/* Click to play/pause - exclude the mute button area */}
                 <div 
                   className="absolute inset-0 cursor-pointer"
+                  style={{ clipPath: 'polygon(0 0, calc(100% - 4rem) 0, calc(100% - 4rem) 4rem, 100% 4rem, 100% 100%, 0 100%)' }}
                   onClick={togglePlay}
                 />
               </div>

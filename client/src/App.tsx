@@ -8,6 +8,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useRef } from "react";
+import { Badge } from "@/components/ui/badge";
+
+import React from "react";
 
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
@@ -34,6 +38,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import { Play, Eye, Heart, VolumeX, Volume2 } from "lucide-react";
 import type { Video, FounderProfile as FounderProfileType, InvestorProfile as InvestorProfileType, Match, Message, Signal } from "@shared/schema";
 
 
@@ -106,6 +111,7 @@ interface Message {
 function DiscoverPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [showMatch, setShowMatch] = useState(false);
   const [matchedFounder, setMatchedFounder] = useState<{ name: string; company: string } | null>(null);
   const [showReport, setShowReport] = useState(false);
@@ -208,6 +214,9 @@ function DiscoverPage() {
           if (video) {
             signalMutation.mutate({ founderId, videoId: video.id, type: "pass" });
           }
+        }}
+        onInfo={(founderId) => {
+          setLocation(`/user/${founderId}`);
         }}
         onReport={(founderId, videoId) => {
           const founder = founders.find(f => f.id === founderId);
@@ -621,9 +630,19 @@ function ProfilePage() {
   const { toast } = useToast();
   const [showVideoUpload, setShowVideoUpload] = useState(false);
   const [, setLocation] = useLocation();
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const { data: stats } = useQuery<Record<string, number>>({
     queryKey: ["/api/dashboard/stats"],
+    enabled: user?.role === "founder",
+  });
+
+  // Fetch current video for founders
+  const { data: currentVideoData } = useQuery({
+    queryKey: ["/api/videos/my/"],
+    queryFn: () => api.get("/api/videos/my/"),
     enabled: user?.role === "founder",
   });
 
@@ -639,6 +658,34 @@ function ProfilePage() {
     },
   });
 
+  const togglePlay = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const toggleMute = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
+
+  const formatCount = (count: number): string => {
+    if (count >= 1000000) {
+      return `${(count / 1000000).toFixed(1)}M`;
+    } else if (count >= 1000) {
+      return `${(count / 1000).toFixed(1)}K`;
+    }
+    return count.toString();
+  };
+
   if (user?.role === "founder") {
     const founderProfile = profile as FounderProfile | null;
     return (
@@ -649,17 +696,8 @@ function ProfilePage() {
             View All Videos
           </Button>
         </div>
-        
-        {showVideoUpload ? (
-          <Card className="max-w-xl overflow-visible">
-            <CardHeader>
-              <CardTitle className="text-lg">Update Your Pitch</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <VideoUpload onSuccess={() => setShowVideoUpload(false)} onCancel={() => setShowVideoUpload(false)} />
-            </CardContent>
-          </Card>
-        ) : (
+
+        {!showVideoUpload && (
           <FounderProfile
             name={user?.name || ""}
             company={founderProfile?.company_name || ""}
@@ -675,6 +713,123 @@ function ProfilePage() {
             onEditProfile={(data) => updateProfileMutation.mutate(data)}
             onEditVideo={() => setShowVideoUpload(true)}
           />
+        )}
+
+        {/* Current Video Section */}
+        {currentVideoData && (
+          <Card>
+            <CardContent className="p-0">
+              <div className="relative aspect-video bg-black rounded-t-lg overflow-hidden">
+                <video
+                  ref={videoRef}
+                  src={currentVideoData.url}
+                  poster={currentVideoData.thumbnailUrl}
+                  className="w-full h-full object-contain"
+                  muted={isMuted}
+                  loop
+                  playsInline
+                  onPlay={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                />
+                
+                {/* Play/Pause Overlay */}
+                {!isPlaying && (
+                  <div 
+                    className="absolute inset-0 flex items-center justify-center bg-black/20 cursor-pointer"
+                    onClick={togglePlay}
+                  >
+                    <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                      <Play className="w-8 h-8 text-white ml-1" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Video Controls */}
+                <div className="absolute top-3 right-3 z-10">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm text-white border-0"
+                    onClick={toggleMute}
+                  >
+                    {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                  </Button>
+                </div>
+
+                {/* Click to play/pause - exclude the mute button area */}
+                <div 
+                  className="absolute inset-0 cursor-pointer"
+                  style={{ clipPath: 'polygon(0 0, calc(100% - 4rem) 0, calc(100% - 4rem) 4rem, 100% 4rem, 100% 100%, 0 100%)' }}
+                  onClick={togglePlay}
+                />
+              </div>
+              
+              <div className="p-4 space-y-3">
+                {currentVideoData.title && (
+                  <h3 className="font-semibold text-lg">{currentVideoData.title}</h3>
+                )}
+                
+                <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <Eye className="h-4 w-4" />
+                    <span>{formatCount(currentVideoData.viewCount || 0)} views</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Heart className="h-4 w-4" />
+                    <span>{formatCount(currentVideoData.likeCount || 0)} likes</span>
+                  </div>
+                  {currentVideoData.status && (
+                    <Badge 
+                      variant={
+                        currentVideoData.status === 'active' ? 'default' :
+                        currentVideoData.status === 'processing' ? 'secondary' : 'destructive'
+                      }
+                    >
+                      {currentVideoData.status}
+                    </Badge>
+                  )}
+                </div>
+
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={() => setShowVideoUpload(true)}
+                >
+                  Update Pitch Video
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {!currentVideoData && !showVideoUpload && (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <p className="text-muted-foreground mb-4">You haven't uploaded a pitch video yet</p>
+              <Button onClick={() => setShowVideoUpload(true)}>
+                Upload Your First Pitch
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+        
+        {showVideoUpload && (
+          <Card className="max-w-xl overflow-visible">
+            <CardHeader>
+              <CardTitle className="text-lg">
+                {currentVideoData ? "Update Your Pitch" : "Upload Your First Pitch"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <VideoUpload 
+                onSuccess={() => {
+                  setShowVideoUpload(false);
+                  queryClient.invalidateQueries({ queryKey: ["/api/videos/my/"] });
+                }} 
+                onCancel={() => setShowVideoUpload(false)} 
+              />
+            </CardContent>
+          </Card>
         )}
       </div>
     );
@@ -970,15 +1125,21 @@ function PublicProfilePage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [, params] = useLocation();
   
   // Extract userId from URL path (e.g., /user/123)
   const userId = window.location.pathname.split('/user/')[1];
 
+  // Redirect to personal profile if viewing own profile
+  React.useEffect(() => {
+    if (user && user.id === userId) {
+      setLocation("/profile");
+    }
+  }, [user, userId, setLocation]);
+
   const { data: profileData, isLoading } = useQuery({
     queryKey: [`/api/user/${userId}/profile`],
     queryFn: () => api.get(`/api/user/${userId}/profile`),
-    enabled: !!userId,
+    enabled: !!userId && user?.id !== userId, // Only fetch if not own profile
   });
 
   const handleLike = async (videoId: string) => {
