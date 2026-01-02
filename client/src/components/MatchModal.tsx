@@ -120,7 +120,7 @@ export default function MatchModal({
               onClick={onStartChat}
               data-testid="button-start-chat"
             >
-              Start Conversation
+              Go To Match
             </Button>
             <Button
               variant="ghost"

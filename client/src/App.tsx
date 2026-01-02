@@ -31,6 +31,7 @@ import AdminPanel from "@/components/AdminPanel";
 import VideoHistory from "@/components/VideoHistory";
 import ReportDialog from "@/components/ReportDialog";
 import PublicProfile from "@/components/PublicProfile";
+import Search from "@/components/Search";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -235,7 +236,7 @@ function DiscoverPage() {
         onClose={() => setShowMatch(false)}
         onStartChat={() => {
           setShowMatch(false);
-          window.location.href = "/messages";
+          window.location.href = "/matches";
         }}
         founder={matchedFounder || { name: "", company: "" }}
         investor={{ name: user?.name || "", firm: "Investor" }}
@@ -387,6 +388,16 @@ function MessagesPage() {
   );
 }
 
+function SearchPage() {
+  const [, setLocation] = useLocation();
+
+  return (
+    <div className="h-[calc(100vh-4rem)] pb-16 md:pb-0">
+      <Search onSelectProfile={(userId) => setLocation(`/user/${userId}`)} />
+    </div>
+  );
+}
+
 function MatchesPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -445,36 +456,41 @@ function MatchesPage() {
           <h2 className="font-display text-xl font-semibold mb-4">
             New Matches - Action Required
           </h2>
+  
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {pendingMatches.map((match) => (
-              <Card key={match.id} className="overflow-visible">
-                <CardContent className="p-4">
-                  <div 
+              <Card key={match.id} className="overflow-visible h-full">
+                <CardContent className="p-4 flex flex-col h-full">
+                  <div
                     className="flex items-center gap-3 mb-4 cursor-pointer"
                     onClick={() => setLocation(`/user/${match.otherUser?.id}`)}
                   >
                     {match.otherUser?.avatarUrl ? (
-                      <img 
-                        src={match.otherUser.avatarUrl} 
+                      <img
+                        src={match.otherUser.avatarUrl}
                         alt={match.otherUser.name}
-                        className="h-12 w-12 rounded-full object-cover"
+                        className="h-12 w-12 rounded-full object-cover shrink-0"
                       />
                     ) : (
-                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold shrink-0">
                         {match.otherUser?.name?.charAt(0) || "?"}
                       </div>
                     )}
-                    <div className="flex-1">
-                      <h3 className="font-medium">{match.otherUser?.name || "Unknown"}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {match.otherProfile?.companyName || "Founder"}
+  
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium truncate">
+                        {match.otherUser?.name || "Unknown"}
+                      </h3>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {match.otherUser?.role || "Founder"}
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      className="flex-1" 
-                      size="sm" 
+  
+                  <div className="mt-auto flex gap-2">
+                    <Button
+                      className="flex-1"
+                      size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         acceptMatchMutation.mutate(match.id);
@@ -483,10 +499,10 @@ function MatchesPage() {
                     >
                       Accept
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      className="flex-1" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         rejectMatchMutation.mutate(match.id);
@@ -502,15 +518,18 @@ function MatchesPage() {
           </div>
         </div>
       )}
-
+  
       {/* Active Matches */}
       <div>
-        <h1 className="font-display text-2xl font-bold mb-6">Active Conversations</h1>
+        <h1 className="font-display text-2xl font-bold mb-6">
+          Active Conversations
+        </h1>
+  
         {activeMatches.length === 0 ? (
           <Card className="overflow-visible">
             <CardContent className="p-8 text-center">
               <p className="text-muted-foreground">
-                {pendingMatches.length > 0 
+                {pendingMatches.length > 0
                   ? "Accept a match above to start messaging"
                   : "No matches yet. Keep swiping!"}
               </p>
@@ -519,43 +538,64 @@ function MatchesPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {activeMatches.map((match) => (
-              <Card 
-                key={match.id} 
-                className="overflow-visible hover-elevate cursor-pointer"
+              <Card
+                key={match.id}
+                className="overflow-visible hover-elevate cursor-pointer h-full"
                 onClick={() => setLocation(`/user/${match.otherUser?.id}`)}
               >
-                <CardContent className="p-4">
+                <CardContent className="p-4 flex flex-col h-full">
+                  {/* Header */}
                   <div className="flex items-center gap-3 mb-3">
                     {match.otherUser?.avatarUrl ? (
-                      <img 
-                        src={match.otherUser.avatarUrl} 
+                      <img
+                        src={match.otherUser.avatarUrl}
                         alt={match.otherUser.name}
-                        className="h-12 w-12 rounded-full object-cover"
+                        className="h-12 w-12 rounded-full object-cover shrink-0"
                       />
                     ) : (
-                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold shrink-0">
                         {match.otherUser?.name?.charAt(0) || "?"}
                       </div>
                     )}
-                    <div className="flex-1">
-                      <h3 className="font-medium">{match.otherUser?.name || "Unknown"}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {match.otherProfile?.companyName || "Founder"}
+  
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium truncate">
+                        {match.otherUser?.name || "Unknown"}
+                      </h3>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {match.otherUser?.role || "Founder"}
                       </p>
                     </div>
                   </div>
-                  {match.lastMessage && (
-                    <p className="text-sm text-muted-foreground mb-2 line-clamp-1">
-                      {match.lastMessage.content}
-                    </p>
-                  )}
-                  {match.unreadCount > 0 && (
-                    <div className="text-sm text-primary font-medium mb-2">
-                      {match.unreadCount} unread message{match.unreadCount > 1 ? 's' : ''}
-                    </div>
-                  )}
-                  <Button 
-                    className="w-full mt-3" 
+  
+                  {/* Last message */}
+                  <div className="mb-2">
+                    {match.lastMessage ? (
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {match.lastMessage.content}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">
+                        No messages yet
+                      </p>
+                    )}
+                  </div>
+  
+                  {/* Reserved unread space (keeps button aligned) */}
+                  <div className="h-5 mb-2">
+                    {match.unreadCount > 0 && (
+                      <p className="text-sm text-primary font-medium">
+                        {match.unreadCount} unread message
+                        {match.unreadCount > 1 ? "s" : ""}
+                      </p>
+                    )}
+                  </div>
+  
+                  {/* Spacer pushes button to bottom */}
+                  <div className="flex-1" />
+  
+                  <Button
+                    className="w-full"
                     size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -571,7 +611,7 @@ function MatchesPage() {
         )}
       </div>
     </div>
-  );
+  );  
 }
 
 function DashboardPage() {
@@ -632,6 +672,8 @@ function ProfilePage() {
   const [, setLocation] = useLocation();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const [localIsLiked, setLocalIsLiked] = useState(false);
+  const [localLikeCount, setLocalLikeCount] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const { data: stats } = useQuery<Record<string, number>>({
@@ -645,6 +687,14 @@ function ProfilePage() {
     queryFn: () => api.get("/api/videos/my/"),
     enabled: user?.role === "founder",
   });
+
+  // Update local like state when video data changes
+  useEffect(() => {
+    if (currentVideoData) {
+      setLocalIsLiked(currentVideoData.isLiked === true);
+      setLocalLikeCount(currentVideoData.likeCount || 0);
+    }
+  }, [currentVideoData?.isLiked, currentVideoData?.likeCount, currentVideoData?.id]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -674,6 +724,27 @@ function ProfilePage() {
     if (videoRef.current) {
       videoRef.current.muted = !isMuted;
       setIsMuted(!isMuted);
+    }
+  };
+
+  const handleLikeToggle = async () => {
+    if (!currentVideoData?.id) return;
+    
+    const wasLiked = localIsLiked;
+    const wasCount = localLikeCount;
+    
+    // Optimistic update
+    setLocalIsLiked(!wasLiked);
+    setLocalLikeCount(prev => wasLiked ? Math.max(prev - 1, 0) : prev + 1);
+    
+    try {
+      await api.post(`/api/videos/${currentVideoData.id}/like/`, { doubleTap: false });
+      // Don't invalidate - let the optimistic update stay
+    } catch (error) {
+      // Rollback on error
+      setLocalIsLiked(wasLiked);
+      setLocalLikeCount(wasCount);
+      console.error("Failed to toggle like:", error);
     }
   };
 
@@ -769,25 +840,37 @@ function ProfilePage() {
                   <h3 className="font-semibold text-lg">{currentVideoData.title}</h3>
                 )}
                 
-                <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Eye className="h-4 w-4" />
-                    <span>{formatCount(currentVideoData.viewCount || 0)} views</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Eye className="h-4 w-4" />
+                      <span>{formatCount(currentVideoData.viewCount || 0)} views</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Heart className="h-4 w-4" />
+                      <span>{formatCount(localLikeCount)} likes</span>
+                    </div>
+                    {currentVideoData.status && (
+                      <Badge 
+                        variant={
+                          currentVideoData.status === 'active' ? 'default' :
+                          currentVideoData.status === 'processing' ? 'secondary' : 'destructive'
+                        }
+                      >
+                        {currentVideoData.status}
+                      </Badge>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Heart className="h-4 w-4" />
-                    <span>{formatCount(currentVideoData.likeCount || 0)} likes</span>
-                  </div>
-                  {currentVideoData.status && (
-                    <Badge 
-                      variant={
-                        currentVideoData.status === 'active' ? 'default' :
-                        currentVideoData.status === 'processing' ? 'secondary' : 'destructive'
-                      }
-                    >
-                      {currentVideoData.status}
-                    </Badge>
-                  )}
+
+                  {/* Like button */}
+                  <Button
+                    size="icon"
+                    variant={localIsLiked ? "default" : "outline"}
+                    className={localIsLiked ? "bg-red-500 hover:bg-red-600" : ""}
+                    onClick={handleLikeToggle}
+                  >
+                    <Heart className={`h-5 w-5 ${localIsLiked ? 'fill-white' : ''}`} />
+                  </Button>
                 </div>
 
                 <Button 
@@ -1185,7 +1268,7 @@ function PublicProfilePage() {
   const founderProfile = profileData.founderProfile;
   const investorProfile = profileData.investorProfile;
   const currentVideo = profileData.currentVideo;
-
+  
   return (
     <PublicProfile
       userId={userId}
@@ -1216,7 +1299,7 @@ function PublicProfilePage() {
       supportTypes={investorProfile?.support_types}
       
       onBack={() => window.history.back()}
-      onLike={user?.role === "investor" && isFounder ? handleLike : undefined}
+      onLike={isFounder ? handleLike : undefined}
       onView={handleView}
     />
   );
@@ -1228,6 +1311,7 @@ function MainApp() {
   const [activeTab, setActiveTab] = useState("discover");
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [, setLocation] = useLocation();
+  const [showSearchModal, setShowSearchModal] = useState(false);
 
   useEffect(() => {
     if (user && user.onboarding_complete && user.role === "admin") {
@@ -1325,11 +1409,26 @@ function MainApp() {
         notificationCount={0}
         userName={user?.name || "User"}
         isAdmin={user?.role === "admin"}
+        onOpenSearch={() => setShowSearchModal(true)}
         onLogout={logout}
       />
+
+      {showSearchModal && (
+        <div className="fixed inset-0 z-50 bg-background">
+          <Search
+            onClose={() => setShowSearchModal(false)}
+            onSelectProfile={(userId) => {
+              setShowSearchModal(false);
+              setLocation(`/user/${userId}`);
+            }}
+          />
+        </div>
+      )}
+
       <main>
         <Switch>
           <Route path="/" component={DiscoverPage} />
+          <Route path="/search" component={SearchPage} />
           <Route path="/messages" component={MessagesPage} />
           <Route path="/matches" component={MatchesPage} />
           <Route path="/dashboard" component={DashboardPage} />

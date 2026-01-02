@@ -2,6 +2,7 @@ import { Bell, Moon, Sun, LogOut, User, Settings, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Search as SearchIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +19,7 @@ interface HeaderProps {
   userAvatar?: string;
   userName?: string;
   isAdmin?: boolean;
+  onOpenSearch?: () => void;
   onLogout?: () => void;
 }
 
@@ -29,6 +31,7 @@ export default function Header({
   userName = "User",
   isAdmin = false,
   onLogout,
+  onOpenSearch,
 }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
 
@@ -66,6 +69,15 @@ export default function Header({
         </nav>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onOpenSearch}
+            className="hidden md:flex"
+          >
+            <SearchIcon className="h-5 w-5" />
+          </Button>
+
           <Button
             size="icon"
             variant="ghost"
