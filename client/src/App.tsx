@@ -124,6 +124,7 @@ function DiscoverPage() {
     queryFn: () => api.get<VideoWithFounder[]>("/api/videos/feed/"),
     staleTime: 0,
     refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   // Create signal mutation
@@ -666,7 +667,7 @@ function DashboardPage() {
 }
 
 function ProfilePage() {
-  const { user, profile, refetch } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const [showVideoUpload, setShowVideoUpload] = useState(false);
   const [, setLocation] = useLocation();
@@ -682,11 +683,18 @@ function ProfilePage() {
   });
 
   // Fetch current video for founders
-  const { data: currentVideoData } = useQuery({
+  const { data: currentVideoData, refetch } = useQuery({
     queryKey: ["/api/videos/my/"],
     queryFn: () => api.get("/api/videos/my/"),
     enabled: user?.role === "founder",
+    refetchOnWindowFocus: true,
+    refetchInterval: 0,
   });
+
+  useEffect(() => {
+    refetch();
+  }, []);
+  
 
   // Update local like state when video data changes
   useEffect(() => {
@@ -729,24 +737,25 @@ function ProfilePage() {
 
   const handleLikeToggle = async () => {
     if (!currentVideoData?.id) return;
-    
+  
     const wasLiked = localIsLiked;
     const wasCount = localLikeCount;
-    
+  
     // Optimistic update
     setLocalIsLiked(!wasLiked);
     setLocalLikeCount(prev => wasLiked ? Math.max(prev - 1, 0) : prev + 1);
-    
+  
     try {
       await api.post(`/api/videos/${currentVideoData.id}/like/`, { doubleTap: false });
-      // Don't invalidate - let the optimistic update stay
+      // Refetch to sync with server
+      refetch();
     } catch (error) {
       // Rollback on error
       setLocalIsLiked(wasLiked);
       setLocalLikeCount(wasCount);
       console.error("Failed to toggle like:", error);
     }
-  };
+  };  
 
   const formatCount = (count: number): string => {
     if (count >= 1000000) {
