@@ -24,7 +24,10 @@ export function useGlobalPresence() {
       if (!token) return;
 
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws/presence/`;
+      const wsUrl = `${protocol}//${import.meta.env.VITE_API_BASE_URL 
+            ? new URL(import.meta.env.VITE_API_BASE_URL).host 
+            : window.location.host}/ws/presence/`;
+
 
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
