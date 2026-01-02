@@ -23,8 +23,9 @@ export class ChatWebSocket {
 
     // WebSocket URL with token
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // Use the same host as your API
-    const host = window.location.hostname === 'localhost' ? 'localhost:3000' : window.location.host;
+    const host = window.location.hostname === 'localhost'
+      ? 'localhost:3000'            // dev
+      : new URL(import.meta.env.VITE_API_BASE_URL).host;  // prod: extract host from full URL
     const wsUrl = `${wsProtocol}//${host}/ws/chat/${this.matchId}/?token=${token}`;
     
     console.log('Attempting WebSocket connection to:', wsUrl);
