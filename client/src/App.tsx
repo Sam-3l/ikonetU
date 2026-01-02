@@ -32,6 +32,9 @@ import VideoHistory from "@/components/VideoHistory";
 import ReportDialog from "@/components/ReportDialog";
 import PublicProfile from "@/components/PublicProfile";
 import Search from "@/components/Search";
+
+import MessagesPage from './pages/MessagesPage';
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -251,140 +254,6 @@ function DiscoverPage() {
         videoId={reportTarget?.videoId}
         targetName={reportTarget?.name}
       />
-    </div>
-  );
-}
-
-function MessagesPage() {
-  const { user } = useAuth();
-  const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
-  const { toast } = useToast();
-
-  const { data: matches, isLoading } = useQuery<MatchWithDetails[]>({
-    queryKey: ["/api/matches/"],
-    queryFn: () => api.get<MatchWithDetails[]>("/api/matches/"),
-    refetchInterval: 10000,
-  });
-
-  const { data: messagesData, refetch: refetchMessages } = useQuery<Message[]>({
-    queryKey: [`/api/matches/${selectedMatchId}/messages/`],
-    queryFn: () => api.get<Message[]>(`/api/matches/${selectedMatchId}/messages/`),
-    enabled: !!selectedMatchId,
-    refetchInterval: 2000,
-  });
-
-  const sendMessageMutation = useMutation({
-    mutationFn: async ({ matchId, content }: { matchId: string; content: string }) => {
-      return api.post<Message>(`/api/matches/${matchId}/messages/send/`, { content });
-    },
-    onSuccess: () => {
-      refetchMessages();
-      queryClient.invalidateQueries({ queryKey: ["/api/matches/"] });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const markReadMutation = useMutation({
-    mutationFn: async (matchId: string) => {
-      return api.put(`/api/matches/${matchId}/messages/mark-read/`, {});
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/matches/"] });
-    },
-  });
-
-  const handleSelectChat = (matchId: string) => {
-    setSelectedMatchId(matchId);
-    markReadMutation.mutate(matchId);
-  };
-
-  // ONLY show ACTIVE matches in messages
-  const activeMatches = matches?.filter(m => m.isActive) || [];
-
-  const chats = activeMatches.map(match => ({
-    id: match.id,
-    name: match.otherUser?.name || "Unknown",
-    avatar: match.otherUser?.avatarUrl || undefined,
-    lastMessage: match.lastMessage?.content || "Start a conversation",
-    timestamp: match.lastMessage 
-      ? new Date(match.lastMessage.createdAt).toLocaleTimeString('en-US', { 
-          hour: 'numeric', 
-          minute: '2-digit',
-          hour12: true 
-        })
-      : "",
-    unreadCount: match.unreadCount,
-    isOnline: false,
-  }));
-
-  const selectedMatch = activeMatches.find(m => m.id === selectedMatchId);
-
-  const formattedMessages = messagesData?.map(m => ({
-    id: m.id,
-    content: m.content,
-    senderId: m.senderId,
-    timestamp: m.createdAt,
-    status: m.status as 'sent' | 'delivered' | 'read',
-  })) || [];
-
-  if (isLoading) {
-    return (
-      <div className="h-[calc(100vh-4rem)] flex items-center justify-center">
-        <Skeleton className="h-12 w-12 rounded-full" />
-      </div>
-    );
-  }
-
-  // Show message if no active matches
-  if (activeMatches.length === 0) {
-    return (
-      <div className="h-[calc(100vh-4rem)] pb-16 md:pb-0 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-muted-foreground">No active conversations yet</p>
-          <Button onClick={() => window.location.href = "/matches"}>
-            View Matches
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="h-[calc(100vh-4rem)] pb-16 md:pb-0 flex w-full">
-      {/* Chat List Sidebar */}
-      <div className={`w-full md:w-80 xl:w-96 border-r border-border flex-shrink-0 ${selectedMatchId ? "hidden md:flex md:flex-col" : "flex flex-col"}`}>
-        <div className="p-4 border-b border-border">
-          <h2 className="font-display text-lg font-semibold">Messages</h2>
-        </div>
-        <ChatList 
-          chats={chats} 
-          selectedChatId={selectedMatchId || undefined} 
-          onSelectChat={handleSelectChat} 
-        />
-      </div>
-      
-      {/* Chat View - Takes ALL remaining space */}
-      <div className={`flex-1 min-w-0 ${!selectedMatchId ? "hidden md:flex" : "flex"}`}>
-        {selectedMatchId && selectedMatch ? (
-          <ChatView
-            chatId={selectedMatchId}
-            recipientName={selectedMatch.otherUser?.name || ""}
-            recipientAvatar={selectedMatch.otherUser?.avatarUrl || undefined}
-            currentUserId={user?.id || ""}
-            messages={formattedMessages}
-            onSendMessage={(content) => sendMessageMutation.mutate({ matchId: selectedMatchId, content })}
-            onBack={() => setSelectedMatchId(null)}
-            canSendMessages={selectedMatch.isActive}
-            useWebSocket={true}
-          />
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground bg-background">
-            <p>Select a conversation to start messaging</p>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

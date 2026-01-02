@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, ArrowLeft, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatWebSocket } from "@/lib/websocket";
 import { api } from "@/lib/apiClient";
 
@@ -26,11 +25,13 @@ interface ChatViewProps {
   recipientName: string;
   recipientAvatar?: string;
   currentUserId: string;
+  recipientId?: string;
   messages: Message[];
   onSendMessage: (content: string) => void;
   onBack?: () => void;
   canSendMessages?: boolean;
   useWebSocket?: boolean;
+  onTypingChange?: (isTyping: boolean) => void;
 }
 
 const MAX_MESSAGE_LENGTH = 5000;
@@ -40,18 +41,21 @@ export default function ChatView({
   recipientName,
   recipientAvatar,
   currentUserId,
+  recipientId,
   messages: initialMessages,
   onSendMessage,
   onBack,
   canSendMessages = true,
   useWebSocket = false,
+  onTypingChange,
 }: ChatViewProps) {
   const [newMessage, setNewMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isTyping, setIsTyping] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
+  const [isRecipientOnline, setIsRecipientOnline] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const wsRef = useRef<ChatWebSocket | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const readMarkIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -60,17 +64,27 @@ export default function ChatView({
     setMessages(initialMessages);
   }, [initialMessages]);
 
-  // Auto-scroll to bottom
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-  };
-
   useEffect(() => {
-    // Delay scroll to ensure DOM is ready
-    setTimeout(scrollToBottom, 100);
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    }, 100);
   }, [messages]);
 
-  // Mark messages as delivered when opening chat, then mark as read while viewing
+  useEffect(() => {
+    if (!chatId || useWebSocket) return;
+    
+    const pollInterval = setInterval(async () => {
+      try {
+        const updatedMessages = await api.get<Message[]>(`/api/matches/${chatId}/messages/`);
+        setMessages(updatedMessages);
+      } catch (error) {
+        console.error('Failed to poll messages:', error);
+      }
+    }, 2000);
+
+    return () => clearInterval(pollInterval);
+  }, [chatId, useWebSocket]);
+
   useEffect(() => {
     if (!chatId) return;
 
@@ -84,25 +98,18 @@ export default function ChatView({
 
     const markAsRead = () => {
       if (useWebSocket && wsRef.current?.isConnected()) {
-        // Use WebSocket to mark as read (broadcasts to sender)
-        wsRef.current.sendMessage(JSON.stringify({
+        wsRef.current.send(JSON.stringify({
           type: 'mark_read'
         }));
       } else {
-        // Fallback to REST API
         api.put(`/api/matches/${chatId}/messages/mark-read/`, {}).catch(error => {
           console.error('Failed to mark messages as read:', error);
         });
       }
     };
 
-    // First mark as delivered (REST API ensures it happens)
     markAsDelivered();
-    
-    // Initial mark as read after a delay
     setTimeout(markAsRead, 500);
-    
-    // Then continuously mark as read
     readMarkIntervalRef.current = setInterval(markAsRead, 3000);
 
     return () => {
@@ -115,7 +122,7 @@ export default function ChatView({
   useEffect(() => {
     if (!useWebSocket || !chatId) return;
 
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('auth_token');
     if (!token) return;
 
     const ws = new ChatWebSocket(chatId);
@@ -123,7 +130,7 @@ export default function ChatView({
 
     const unsubMessage = ws.onMessage((data) => {
       if (data.type === 'chat_message') {
-        const newMsg = {
+        const newMsg: Message = {
           id: data.message.id,
           content: data.message.content,
           senderId: data.message.sender_id || data.message.senderId,
@@ -131,7 +138,19 @@ export default function ChatView({
           status: data.message.status
         };
         
-        setMessages(prev => [...prev, newMsg]);
+        setMessages(prev => {
+          const existingIndex = prev.findIndex(m => m.id === newMsg.id);
+          
+          if (existingIndex !== -1) {
+            return prev.map((m, idx) => 
+              idx === existingIndex 
+                ? { ...m, status: newMsg.status, content: newMsg.content }
+                : m
+            );
+          } else {
+            return [...prev, newMsg];
+          }
+        });
         
         if (newMsg.senderId !== currentUserId) {
           setTimeout(async () => {
@@ -152,15 +171,19 @@ export default function ChatView({
         if (data.user_id !== currentUserId) {
           setIsTyping(data.is_typing);
         }
+      } else if (data.type === 'user_presence') {
+        if (data.user_id !== currentUserId) {
+          setIsRecipientOnline(data.is_online);
+        }
       }
     });
 
     const unsubConnect = ws.onConnect(() => {
-      setIsConnected(true);
+      // Connected
     });
 
     const unsubDisconnect = ws.onDisconnect(() => {
-      setIsConnected(false);
+      setIsRecipientOnline(false);
     });
 
     ws.connect(token);
@@ -171,15 +194,34 @@ export default function ChatView({
       unsubDisconnect();
       ws.disconnect();
     };
-  }, [chatId, currentUserId, useWebSocket]);
+  }, [chatId, currentUserId, recipientId, useWebSocket]);
 
-  const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     if (value.length <= MAX_MESSAGE_LENGTH) {
       setNewMessage(value);
 
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+        textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+      }
+
+      // Notify global presence of typing status
+      if (onTypingChange) {
+        onTypingChange(value.length > 0);
+        
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+
+        typingTimeoutRef.current = setTimeout(() => {
+          onTypingChange(false);
+        }, 2000);
+      }
+
+      // Also send to WebSocket for in-chat typing indicator
       if (useWebSocket && wsRef.current?.isConnected()) {
-        wsRef.current.sendTypingIndicator(true);
+        wsRef.current.sendTypingIndicator(value.length > 0);
 
         if (typingTimeoutRef.current) {
           clearTimeout(typingTimeoutRef.current);
@@ -192,12 +234,15 @@ export default function ChatView({
     }
   };
 
-  const remainingChars = MAX_MESSAGE_LENGTH - newMessage.length;
-
   const handleSubmit = () => {
     if (!newMessage.trim()) return;
 
     const content = newMessage.trim();
+
+    // Stop typing indicator
+    if (onTypingChange) {
+      onTypingChange(false);
+    }
 
     if (useWebSocket && wsRef.current?.isConnected()) {
       wsRef.current.sendTypingIndicator(false);
@@ -207,6 +252,9 @@ export default function ChatView({
     }
 
     setNewMessage("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
   };
 
   const handleStarterClick = (starter: string) => {
@@ -221,6 +269,7 @@ export default function ChatView({
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return '';
     return date.toLocaleTimeString('en-US', { 
       hour: 'numeric', 
       minute: '2-digit',
@@ -257,9 +306,20 @@ export default function ChatView({
     }
   };
 
+  const TypingIndicator = () => (
+    <div className="flex items-start mb-3">
+      <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-3">
+        <div className="flex gap-1">
+          <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '1.4s' }}></span>
+          <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '200ms', animationDuration: '1.4s' }}></span>
+          <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '400ms', animationDuration: '1.4s' }}></span>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col h-full w-full bg-background">
-      {/* Header */}
       <div className="flex items-center gap-3 p-4 border-b border-border bg-background">
         {onBack && (
           <Button size="icon" variant="ghost" onClick={onBack} className="md:hidden">
@@ -275,17 +335,16 @@ export default function ChatView({
         <div className="flex-1">
           <h3 className="font-medium">{recipientName}</h3>
           <div className="flex items-center gap-1.5">
-            {isConnected && (
+            {isRecipientOnline && (
               <span className="w-2 h-2 rounded-full bg-green-500"></span>
             )}
             <p className="text-xs text-muted-foreground">
-              {isTyping ? "typing..." : isConnected ? "online" : "offline"}
+              {isTyping ? "typing..." : isRecipientOnline ? "online" : "offline"}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4" ref={scrollRef}>
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-8">
@@ -324,16 +383,17 @@ export default function ChatView({
           <div className="space-y-3">
             {messages.map((message, index) => {
               const isOwn = message.senderId === currentUserId;
+              const messageDate = new Date(message.timestamp);
               const showDate = 
                 index === 0 || 
-                new Date(messages[index - 1]?.timestamp).toDateString() !== new Date(message.timestamp).toDateString();
+                new Date(messages[index - 1]?.timestamp).toDateString() !== messageDate.toDateString();
 
               return (
                 <div key={message.id}>
-                  {showDate && (
+                  {showDate && !isNaN(messageDate.getTime()) && (
                     <div className="flex justify-center my-4">
                       <span className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full">
-                        {new Date(message.timestamp).toLocaleDateString('en-US', { 
+                        {messageDate.toLocaleDateString('en-US', { 
                           weekday: 'short', 
                           month: 'short', 
                           day: 'numeric' 
@@ -365,44 +425,35 @@ export default function ChatView({
                 </div>
               );
             })}
+            {isTyping && <TypingIndicator />}
             <div ref={messagesEndRef} />
           </div>
         )}
       </div>
 
-      {/* Input Area - Fixed at bottom */}
       <div className="border-t border-border bg-background p-4">
         <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <Input
-              value={newMessage}
-              onChange={handleMessageChange}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSubmit();
-                }
-              }}
-              placeholder={canSendMessages ? "Type a message..." : "Waiting for match acceptance..."}
-              className="resize-none"
-              maxLength={MAX_MESSAGE_LENGTH}
-              disabled={!canSendMessages}
-            />
-            {canSendMessages && newMessage.length > 0 && (
-              <div className="flex justify-end mt-1">
-                <span 
-                  className={`text-[10px] ${remainingChars <= 50 ? 'text-destructive' : 'text-muted-foreground'}`}
-                >
-                  {remainingChars} remaining
-                </span>
-              </div>
-            )}
-          </div>
+          <Textarea
+            ref={textareaRef}
+            value={newMessage}
+            onChange={handleMessageChange}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
+            placeholder={canSendMessages ? "Type a message..." : "Waiting for match acceptance..."}
+            className="min-h-[44px] max-h-[120px] resize-none"
+            rows={1}
+            maxLength={MAX_MESSAGE_LENGTH}
+            disabled={!canSendMessages}
+          />
           <Button
             onClick={handleSubmit}
             size="icon"
             disabled={!newMessage.trim() || !canSendMessages}
-            className="shrink-0"
+            className="shrink-0 h-[44px] w-[44px]"
           >
             <Send className="h-4 w-4" />
           </Button>

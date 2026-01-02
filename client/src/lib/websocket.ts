@@ -21,9 +21,13 @@ export class ChatWebSocket {
       this.ws.close();
     }
 
-    // WebSocket URL - adjust based on your backend setup
+    // WebSocket URL with token
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//localhost:3000/ws/chat/${this.matchId}/`;
+    // Use the same host as your API
+    const host = window.location.hostname === 'localhost' ? 'localhost:3000' : window.location.host;
+    const wsUrl = `${wsProtocol}//${host}/ws/chat/${this.matchId}/?token=${token}`;
+    
+    console.log('Attempting WebSocket connection to:', wsUrl);
     
     this.ws = new WebSocket(wsUrl);
 
@@ -66,33 +70,33 @@ export class ChatWebSocket {
     }
   }
 
-  sendMessage(content: string) {
+  send(data: any) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
-        type: 'chat_message',
-        content
-      }));
+      this.ws.send(typeof data === 'string' ? data : JSON.stringify(data));
     } else {
       console.error('WebSocket is not connected');
     }
   }
 
+  sendMessage(content: string) {
+    this.send({
+      type: 'chat_message',
+      content
+    });
+  }
+
   markMessageRead(messageId: string) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
-        type: 'message_read',
-        message_id: messageId
-      }));
-    }
+    this.send({
+      type: 'message_read',
+      message_id: messageId
+    });
   }
 
   sendTypingIndicator(isTyping: boolean) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
-        type: 'typing',
-        is_typing: isTyping
-      }));
-    }
+    this.send({
+      type: 'typing',
+      is_typing: isTyping
+    });
   }
 
   onMessage(handler: MessageHandler) {
