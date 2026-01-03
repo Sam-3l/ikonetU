@@ -323,7 +323,9 @@ function MatchesPage() {
       {pendingMatches.length > 0 && (
         <div>
           <h2 className="font-display text-xl font-semibold mb-4">
-            New Matches - Action Required
+            {user?.role === "investor" 
+              ? "New Matches - Action Required" 
+              : "Pending Matches"}
           </h2>
   
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -356,31 +358,44 @@ function MatchesPage() {
                     </div>
                   </div>
   
-                  <div className="mt-auto flex gap-2">
-                    <Button
-                      className="flex-1"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        acceptMatchMutation.mutate(match.id);
-                      }}
-                      disabled={acceptMatchMutation.isPending}
-                    >
-                      Accept
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex-1"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        rejectMatchMutation.mutate(match.id);
-                      }}
-                      disabled={rejectMatchMutation.isPending}
-                    >
-                      Reject
-                    </Button>
-                  </div>
+                  {user?.role === "investor" ? (
+                    <>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Do you want to proceed with this match?
+                      </p>
+                      <div className="mt-auto flex gap-2">
+                        <Button
+                          className="flex-1"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            acceptMatchMutation.mutate(match.id);
+                          }}
+                          disabled={acceptMatchMutation.isPending}
+                        >
+                          Yes
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            rejectMatchMutation.mutate(match.id);
+                          }}
+                          disabled={rejectMatchMutation.isPending}
+                        >
+                          No
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="mt-auto">
+                      <p className="text-sm text-muted-foreground text-center py-2">
+                        Waiting for investor to accept match...
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
