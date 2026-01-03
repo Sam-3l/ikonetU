@@ -59,7 +59,6 @@ export function useGlobalPresence() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('🟢 Global Presence WebSocket CONNECTED');
         if (heartbeatIntervalRef.current) {
           clearInterval(heartbeatIntervalRef.current);
         }
@@ -143,7 +142,6 @@ export function useGlobalPresence() {
       };
 
       ws.onclose = () => {
-        console.log('🔴 Global Presence WebSocket DISCONNECTED');
         if (heartbeatIntervalRef.current) {
           clearInterval(heartbeatIntervalRef.current);
         }
@@ -152,7 +150,6 @@ export function useGlobalPresence() {
         const currentToken = localStorage.getItem('auth_token');
         if (currentToken) {
           reconnectTimeoutRef.current = setTimeout(() => {
-            console.log('🔄 Reconnecting Global Presence WebSocket...');
             connect();
           }, 3000);
         }
@@ -162,7 +159,6 @@ export function useGlobalPresence() {
     connect();
 
     return () => {
-      console.log('🧹 Cleaning up Global Presence WebSocket');
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
       }

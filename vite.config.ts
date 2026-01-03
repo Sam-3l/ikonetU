@@ -55,4 +55,11 @@ export default defineConfig({
       }
     }
   },
+  preview: {
+    port: 8088,
+    strictPort: false,
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+    }
+  }
 });
