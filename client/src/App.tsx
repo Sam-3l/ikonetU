@@ -1194,6 +1194,13 @@ function MainApp() {
     if (user && user.onboarding_complete && user.role === "admin") {
       setLocation("/admin");
       setActiveTab("admin");
+    } else if (user && user.onboarding_complete) {
+      // If we're authenticated and on a non-app route, redirect to discover
+      const currentPath = window.location.pathname;
+      if (currentPath === "/login" || currentPath === "/signup") {
+        setLocation("/");
+        setActiveTab("discover");
+      }
     }
   }, [user, setLocation]);
 
@@ -1232,6 +1239,7 @@ function MainApp() {
   const handleLogin = async (email: string, password: string) => {
     try {
       await login(email, password);
+      setLocation("/");
     } catch (error: any) {
       toast({ title: "Login failed", description: error.message, variant: "destructive" });
     }
@@ -1247,12 +1255,21 @@ function MainApp() {
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
-    if (tab === "discover") setLocation("/");
-    else if (tab === "messages") setLocation("/messages");
-    else if (tab === "matches") setLocation("/matches");
-    else if (tab === "profile") setLocation("/profile");
-    else if (tab === "search") setLocation("/search");
-    else if (tab === "admin") setLocation("/admin");
+    
+    // Use proper routing paths
+    const routes: Record<string, string> = {
+      discover: "/",
+      messages: "/messages",
+      matches: "/matches",
+      profile: "/profile",
+      search: "/search",
+      admin: "/admin"
+    };
+    
+    const route = routes[tab];
+    if (route) {
+      setLocation(route);
+    }
   };
 
   if (isLoading) {
@@ -1320,8 +1337,23 @@ function MainApp() {
           <Route path="/admin">
             {user?.role === "admin" ? <AdminPage /> : <Redirect to="/" />}
           </Route>
-          <Route>
-            <DiscoverPage />
+          <Route path="/:rest*">
+            {() => {
+              const [location] = useLocation();
+              // If route doesn't match anything, redirect to discover
+              if (location !== "/" && 
+                  !location.startsWith("/messages") && 
+                  !location.startsWith("/matches") && 
+                  !location.startsWith("/profile") &&
+                  !location.startsWith("/user/") && 
+                  !location.startsWith("/search") &&
+                  !location.startsWith("/videos") && 
+                  !location.startsWith("/admin") &&
+                  !location.startsWith("/dashboard")) {
+                return <Redirect to="/" />;
+              }
+              return <DiscoverPage />;
+            }}
           </Route>
         </Switch>
       </main>
