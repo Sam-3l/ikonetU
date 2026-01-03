@@ -371,7 +371,7 @@ function MatchesPage() {
                             e.stopPropagation();
                             acceptMatchMutation.mutate(match.id);
                           }}
-                          disabled={acceptMatchMutation.isPending}
+                          disabled={acceptMatchMutation.isPending && acceptMatchMutation.variables === match.id}
                         >
                           Yes
                         </Button>
@@ -383,7 +383,7 @@ function MatchesPage() {
                             e.stopPropagation();
                             rejectMatchMutation.mutate(match.id);
                           }}
-                          disabled={rejectMatchMutation.isPending}
+                          disabled={rejectMatchMutation.isPending && rejectMatchMutation.variables === match.id}
                         >
                           No
                         </Button>
