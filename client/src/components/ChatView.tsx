@@ -5,6 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChatWebSocket } from "@/lib/websocket";
 import { api } from "@/lib/apiClient";
+import { useLocation } from "wouter";
+import { useGlobalPresenceContext } from "@/contexts/GlobalPresenceContext";
 
 const CONVERSATION_STARTERS = [
   "What stage is your company at?",
@@ -32,6 +34,7 @@ interface ChatViewProps {
   canSendMessages?: boolean;
   useWebSocket?: boolean;
   onTypingChange?: (isTyping: boolean) => void;
+  isRecipientOnlineGlobal?: boolean;
 }
 
 const MAX_MESSAGE_LENGTH = 5000;
@@ -48,21 +51,77 @@ export default function ChatView({
   canSendMessages = true,
   useWebSocket = false,
   onTypingChange,
+  isRecipientOnlineGlobal = false,
 }: ChatViewProps) {
   const [newMessage, setNewMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [isTyping, setIsTyping] = useState(false);
-  const [isRecipientOnline, setIsRecipientOnline] = useState(false);
+  const [isFetchingMessages, setIsFetchingMessages] = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(false);
+  const [hasResolvedMessages, setHasResolvedMessages] = useState(false);
+  const [, setLocation] = useLocation();
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const wsRef = useRef<ChatWebSocket | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const readMarkIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Get global presence from context (not directly from hook to avoid duplicate connections)
+  const { onMessageStatusUpdate } = useGlobalPresenceContext();
 
   useEffect(() => {
-    setMessages(initialMessages);
-  }, [initialMessages]);
+    setHasResolvedMessages(false);
+    setIsFetchingMessages(true);
+    setShowSkeleton(false);
+  }, [chatId]);  
+
+  useEffect(() => {
+    if (initialMessages.length === 0) {
+      setMessages([]);
+      return;
+    }
+    
+    // Only update if we don't have messages yet, or merge statuses intelligently
+    setMessages(prev => {
+      if (prev.length === 0) {
+        return initialMessages;
+      }
+      
+      // Merge: keep the most up-to-date status for each message
+      const merged = initialMessages.map(newMsg => {
+        const existing = prev.find(m => m.id === newMsg.id);
+        if (existing) {
+          // Keep the more advanced status (sent < delivered < read)
+          const statusPriority = { sent: 1, delivered: 2, read: 3 };
+          const existingPriority = statusPriority[existing.status || 'sent'] || 1;
+          const newPriority = statusPriority[newMsg.status || 'sent'] || 1;
+          
+          return {
+            ...newMsg,
+            status: existingPriority >= newPriority ? existing.status : newMsg.status
+          };
+        }
+        return newMsg;
+      });
+      
+      return merged;
+    });
+  }, [initialMessages, chatId]);
+  
+  useEffect(() => {
+    if (initialMessages.length > 0) {
+      setHasResolvedMessages(true);
+      setIsFetchingMessages(false);
+    }
+  }, [initialMessages]);  
+  
+  useEffect(() => {
+    if (!isFetchingMessages) return;
+  
+    const t = setTimeout(() => setShowSkeleton(true), 200);
+    return () => clearTimeout(t);
+  }, [isFetchingMessages]);
 
   useEffect(() => {
     setTimeout(() => {
@@ -72,18 +131,32 @@ export default function ChatView({
 
   useEffect(() => {
     if (!chatId || useWebSocket) return;
-    
-    const pollInterval = setInterval(async () => {
+  
+    let resolved = false;
+  
+    const poll = async () => {
       try {
-        const updatedMessages = await api.get<Message[]>(`/api/matches/${chatId}/messages/`);
-        setMessages(updatedMessages);
-      } catch (error) {
-        console.error('Failed to poll messages:', error);
+        const data = await api.get<Message[]>(
+          `/api/matches/${chatId}/messages/`
+        );
+  
+        setMessages(data);
+  
+        if (!resolved) {
+          setHasResolvedMessages(true);
+          setIsFetchingMessages(false);
+          resolved = true;
+        }        
+      } catch (e) {
+        console.error(e);
       }
-    }, 2000);
-
-    return () => clearInterval(pollInterval);
-  }, [chatId, useWebSocket]);
+    };
+  
+    poll(); // 🔥 immediate first fetch
+    const interval = setInterval(poll, 2000);
+  
+    return () => clearInterval(interval);
+  }, [chatId, useWebSocket]);      
 
   useEffect(() => {
     if (!chatId) return;
@@ -118,6 +191,21 @@ export default function ChatView({
       }
     };
   }, [chatId, useWebSocket]);
+
+  // Listen for message status updates from global presence
+  useEffect(() => {
+    if (!onMessageStatusUpdate) return;
+
+    const unsubscribe = onMessageStatusUpdate((data) => {
+      setMessages(prev => prev.map(msg =>
+        msg.id === data.message_id
+          ? { ...msg, status: data.status }
+          : msg
+      ));
+    });
+
+    return unsubscribe;
+  }, [onMessageStatusUpdate]);
 
   useEffect(() => {
     if (!useWebSocket || !chatId) return;
@@ -171,19 +259,17 @@ export default function ChatView({
         if (data.user_id !== currentUserId) {
           setIsTyping(data.is_typing);
         }
-      } else if (data.type === 'user_presence') {
-        if (data.user_id !== currentUserId) {
-          setIsRecipientOnline(data.is_online);
-        }
       }
     });
 
     const unsubConnect = ws.onConnect(() => {
-      // Connected
-    });
+      setHasResolvedMessages(true);
+      setIsFetchingMessages(false);
+    });        
 
     const unsubDisconnect = ws.onDisconnect(() => {
-      setIsRecipientOnline(false);
+      // Don't update online status here - global presence handles it
+      // ChatWebSocket disconnect does NOT mean user is offline - they might still be on the app
     });
 
     ws.connect(token);
@@ -206,29 +292,32 @@ export default function ChatView({
         textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
       }
 
+      const isCurrentlyTyping = value.length > 0;
+
       // Notify global presence of typing status
       if (onTypingChange) {
-        onTypingChange(value.length > 0);
-        
-        if (typingTimeoutRef.current) {
-          clearTimeout(typingTimeoutRef.current);
-        }
-
-        typingTimeoutRef.current = setTimeout(() => {
-          onTypingChange(false);
-        }, 2000);
+        onTypingChange(isCurrentlyTyping);
       }
 
       // Also send to WebSocket for in-chat typing indicator
       if (useWebSocket && wsRef.current?.isConnected()) {
-        wsRef.current.sendTypingIndicator(value.length > 0);
+        wsRef.current.sendTypingIndicator(isCurrentlyTyping);
+      }
 
-        if (typingTimeoutRef.current) {
-          clearTimeout(typingTimeoutRef.current);
-        }
+      // Clear existing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
 
+      // Set timeout to stop typing after 2 seconds of inactivity
+      if (isCurrentlyTyping) {
         typingTimeoutRef.current = setTimeout(() => {
-          wsRef.current?.sendTypingIndicator(false);
+          if (onTypingChange) {
+            onTypingChange(false);
+          }
+          if (wsRef.current?.isConnected()) {
+            wsRef.current.sendTypingIndicator(false);
+          }
         }, 2000);
       }
     }
@@ -239,13 +328,18 @@ export default function ChatView({
 
     const content = newMessage.trim();
 
-    // Stop typing indicator
+    // Stop typing indicator immediately
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
     if (onTypingChange) {
       onTypingChange(false);
     }
-
     if (useWebSocket && wsRef.current?.isConnected()) {
       wsRef.current.sendTypingIndicator(false);
+    }
+
+    if (useWebSocket && wsRef.current?.isConnected()) {
       wsRef.current.sendMessage(content);
     } else {
       onSendMessage(content);
@@ -264,6 +358,12 @@ export default function ChatView({
       wsRef.current.sendMessage(starter);
     } else {
       onSendMessage(starter);
+    }
+  };
+
+  const handleProfileClick = () => {
+    if (recipientId) {
+      setLocation(`/user/${recipientId}`);
     }
   };
 
@@ -318,6 +418,56 @@ export default function ChatView({
     </div>
   );
 
+  const MessagesSkeleton = () => {
+    const rows = [
+      { own: false, width: "65%" },
+      { own: true, width: "55%" },
+      { own: false, width: "40%" },
+      { own: true, width: "70%" },
+      { own: false, width: "50%" },
+    ];
+  
+    return (
+      <div className="space-y-4">
+        {/* Date separator skeleton */}
+        <div className="flex justify-center">
+          <div className="h-4 w-24 rounded-full bg-muted animate-pulse" />
+        </div>
+  
+        {rows.map((row, i) => (
+          <div
+            key={i}
+            className={`flex items-end gap-2 ${
+              row.own ? "justify-end" : "justify-start"
+            }`}
+          >
+            {!row.own && (
+              <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
+            )}
+  
+            <div
+              className={`relative overflow-hidden rounded-2xl px-3 py-2 ${
+                row.own
+                  ? "bg-primary/20 rounded-br-sm"
+                  : "bg-muted rounded-bl-sm"
+              }`}
+              style={{ width: row.width }}
+            >
+              {/* Shimmer */}
+              <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+  
+              {/* Fake text lines */}
+              <div className="space-y-2">
+                <div className="h-3 w-full rounded bg-black/10 dark:bg-white/10" />
+                <div className="h-3 w-3/4 rounded bg-black/10 dark:bg-white/10" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };    
+
   return (
     <div className="flex flex-col h-full w-full bg-background">
       <div className="flex items-center gap-3 p-4 border-b border-border bg-background">
@@ -326,27 +476,34 @@ export default function ChatView({
             <ArrowLeft className="h-5 w-5" />
           </Button>
         )}
-        <Avatar className="h-10 w-10">
-          <AvatarImage src={recipientAvatar} />
-          <AvatarFallback className="bg-primary/10 text-primary">
-            {recipientName.charAt(0)}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex-1">
-          <h3 className="font-medium">{recipientName}</h3>
-          <div className="flex items-center gap-1.5">
-            {isRecipientOnline && (
-              <span className="w-2 h-2 rounded-full bg-green-500"></span>
-            )}
-            <p className="text-xs text-muted-foreground">
-              {isTyping ? "typing..." : isRecipientOnline ? "online" : "offline"}
-            </p>
+        <button 
+          onClick={handleProfileClick}
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+        >
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={recipientAvatar} />
+            <AvatarFallback className="bg-primary/10 text-primary">
+              {recipientName.charAt(0)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 text-left">
+            <h3 className="font-medium">{recipientName}</h3>
+            <div className="flex items-center gap-1.5">
+              {isRecipientOnlineGlobal && (
+                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {isTyping ? "typing..." : isRecipientOnlineGlobal ? "online" : "offline"}
+              </p>
+            </div>
           </div>
-        </div>
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4" ref={scrollRef}>
-        {messages.length === 0 ? (
+        {!hasResolvedMessages && showSkeleton ? (
+          <MessagesSkeleton />
+        ) : !hasResolvedMessages ? null : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-8">
             <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
               <MessageCircle className="w-6 h-6 text-muted-foreground" />

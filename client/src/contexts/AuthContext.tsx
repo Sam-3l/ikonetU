@@ -136,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setProfile(null);
       queryClient.clear();
+      window.location.href = '/';
     },
   });
 

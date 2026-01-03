@@ -28,12 +28,9 @@ export class ChatWebSocket {
       : new URL(import.meta.env.VITE_API_BASE_URL).host;  // prod: extract host from full URL
     const wsUrl = `${wsProtocol}//${host}/ws/chat/${this.matchId}/?token=${token}`;
     
-    console.log('Attempting WebSocket connection to:', wsUrl);
-    
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
-      console.log('WebSocket connected');
       this.reconnectAttempts = 0;
       this.connectionHandlers.forEach(handler => handler());
     };
@@ -52,7 +49,6 @@ export class ChatWebSocket {
     };
 
     this.ws.onclose = () => {
-      console.log('WebSocket disconnected');
       this.disconnectionHandlers.forEach(handler => handler());
       this.attemptReconnect(token);
     };
@@ -62,9 +58,7 @@ export class ChatWebSocket {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
       const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-      
-      console.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
-      
+            
       this.reconnectTimeout = setTimeout(() => {
         this.connect(token);
       }, delay);

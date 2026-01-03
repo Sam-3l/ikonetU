@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/apiClient";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useGlobalPresence } from "@/hooks/useGlobalPresence";
+import { useGlobalPresenceContext } from "@/contexts/GlobalPresenceContext";
 import ChatList from "@/components/ChatList";
 import ChatView from "@/components/ChatView";
 import { Button } from "@/components/ui/button";
@@ -52,14 +52,15 @@ interface Message {
 function MessagesPage() {
   const { user } = useAuth();
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
+  const [localMessages, setLocalMessages] = useState<Record<string, Message[]>>({});
   const { toast } = useToast();
   
-  const { getUserStatus, isUserTypingInMatch, sendTypingStatus } = useGlobalPresence();
+  const { getUserStatus, isUserTypingInMatch, sendTypingStatus, onNewMessage, onMessageStatusUpdate } = useGlobalPresenceContext();
 
   const { data: matches, isLoading } = useQuery<MatchWithDetails[]>({
     queryKey: ["/api/matches/"],
     queryFn: () => api.get<MatchWithDetails[]>("/api/matches/"),
-    refetchInterval: 10000,
+    refetchInterval: 30000, // Reduced from 10s to 30s since WebSocket handles real-time updates
   });
 
   const { data: messagesData, refetch: refetchMessages } = useQuery<Message[]>({
@@ -68,6 +69,60 @@ function MessagesPage() {
     enabled: !!selectedMatchId,
     refetchInterval: 2000,
   });
+
+  // Update local messages when data changes
+  useEffect(() => {
+    if (selectedMatchId && messagesData) {
+      setLocalMessages(prev => ({
+        ...prev,
+        [selectedMatchId]: messagesData
+      }));
+    }
+  }, [selectedMatchId, messagesData]);
+
+  // Listen for real-time new message notifications from global presence
+  useEffect(() => {
+    if (!onNewMessage) return;
+
+    const unsubscribe = onNewMessage((data) => {
+      // Only refetch if we're NOT in the chat that received the message
+      // (because if we're in the chat, the ChatView WebSocket handles it)
+      if (data.match_id !== selectedMatchId) {
+        // Immediately refetch matches to update unread count
+        queryClient.invalidateQueries({ queryKey: ["/api/matches/"] });
+      }
+    });
+
+    return unsubscribe;
+  }, [selectedMatchId, onNewMessage]);
+
+  // Listen for message status updates from global presence
+  useEffect(() => {
+    if (!onMessageStatusUpdate) return;
+
+    const unsubscribe = onMessageStatusUpdate((data) => {
+      // Update local messages for all chats
+      setLocalMessages(prev => {
+        const updated = { ...prev };
+        
+        // Update message status in all cached chats
+        Object.keys(updated).forEach(matchId => {
+          updated[matchId] = updated[matchId].map(msg =>
+            msg.id === data.message_id
+              ? { ...msg, status: data.status }
+              : msg
+          );
+        });
+        
+        return updated;
+      });
+
+      // Also invalidate the matches query to update last message status in chat list
+      queryClient.invalidateQueries({ queryKey: ["/api/matches/"] });
+    });
+
+    return unsubscribe;
+  }, [onMessageStatusUpdate]);
 
   const sendMessageMutation = useMutation({
     mutationFn: async ({ matchId, content }: { matchId: string; content: string }) => {
@@ -125,14 +180,23 @@ function MessagesPage() {
   });
 
   const selectedMatch = activeMatches.find(m => m.id === selectedMatchId);
+  
+  // Get recipient's online status from global presence
+  const recipientUserId = selectedMatch?.otherUser?.id || '';
+  const recipientStatus = getUserStatus(recipientUserId);
 
-  const formattedMessages = messagesData?.map(m => ({
+  // Use local messages if available, otherwise use fetched data
+  const currentMessages = selectedMatchId && localMessages[selectedMatchId] 
+    ? localMessages[selectedMatchId] 
+    : messagesData || [];
+
+  const formattedMessages = currentMessages.map(m => ({
     id: m.id,
     content: m.content,
     senderId: m.senderId,
     timestamp: m.createdAt,
     status: m.status as 'sent' | 'delivered' | 'read',
-  })) || [];
+  }));
 
   if (isLoading) {
     return (
@@ -186,6 +250,7 @@ function MessagesPage() {
             canSendMessages={selectedMatch.isActive}
             useWebSocket={true}
             onTypingChange={(isTyping) => sendTypingStatus(selectedMatchId, isTyping)}
+            isRecipientOnlineGlobal={recipientStatus.isOnline}
           />
         ) : (
           <div className="hidden md:flex flex-1 items-center justify-center text-muted-foreground bg-background">

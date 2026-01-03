@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useRef } from "react";
 import { Badge } from "@/components/ui/badge";
+import { GlobalPresenceProvider } from "@/contexts/GlobalPresenceContext";
 
 import React from "react";
 
@@ -17,8 +18,6 @@ import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import VideoFeed from "@/components/VideoFeed";
 import MatchModal from "@/components/MatchModal";
-import ChatList from "@/components/ChatList";
-import ChatView from "@/components/ChatView";
 import DashboardStats from "@/components/DashboardStats";
 import Pipeline from "@/components/Pipeline";
 import AuthForms from "@/components/AuthForms";
@@ -1337,8 +1336,10 @@ function App() {
       <TooltipProvider>
         <ThemeProvider>
           <AuthProvider>
-            <Toaster />
-            <MainApp />
+            <GlobalPresenceProvider>
+              <Toaster />
+              <MainApp />
+            </GlobalPresenceProvider>
           </AuthProvider>
         </ThemeProvider>
       </TooltipProvider>
