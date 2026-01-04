@@ -22,6 +22,11 @@ interface MessageStatusUpdate {
   status: 'sent' | 'delivered' | 'read';
 }
 
+interface MatchStatusUpdate {
+  match_id: string;
+  is_active: boolean;
+}
+
 export function useGlobalPresence() {
   const [userStatuses, setUserStatuses] = useState<Record<string, UserStatus>>({});
   const [typingStatuses, setTypingStatuses] = useState<TypingStatus>({});
@@ -32,6 +37,7 @@ export function useGlobalPresence() {
   const typingTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({});
   const messageListenersRef = useRef<Set<(data: NewMessageData) => void>>(new Set());
   const messageStatusListenersRef = useRef<Set<(data: MessageStatusUpdate) => void>>(new Set());
+  const matchStatusListenersRef = useRef<Set<(data: MatchStatusUpdate) => void>>(new Set());
 
   // Watch for auth token changes
   useEffect(() => {
@@ -134,6 +140,14 @@ export function useGlobalPresence() {
               status: data.status,
             });
           });
+        } else if (data.type === 'match_status_update') {
+          // Notify all listeners about match status change
+          matchStatusListenersRef.current.forEach(listener => {
+            listener({
+              match_id: data.match_id,
+              is_active: data.is_active,
+            });
+          });
         }
       };
 
@@ -204,6 +218,13 @@ export function useGlobalPresence() {
     };
   };
 
+  const onMatchStatusUpdate = (callback: (data: MatchStatusUpdate) => void) => {
+    matchStatusListenersRef.current.add(callback);
+    return () => {
+      matchStatusListenersRef.current.delete(callback);
+    };
+  };  
+
   return {
     userStatuses,
     getUserStatus,
@@ -211,5 +232,6 @@ export function useGlobalPresence() {
     sendTypingStatus,
     onNewMessage,
     onMessageStatusUpdate,
+    onMatchStatusUpdate,
   };
 }

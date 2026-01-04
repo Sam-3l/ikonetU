@@ -10,7 +10,14 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useRef } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Camera, Globe, Linkedin, TrendingUp } from "lucide-react";
 import { GlobalPresenceProvider } from "@/contexts/GlobalPresenceContext";
+import { useGlobalPresenceContext } from "@/contexts/GlobalPresenceContext";
+import { Check, X, Edit2, Briefcase, MapPin, User, FileText } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQueryClient } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 import React from "react";
 
@@ -21,8 +28,6 @@ import MatchModal from "@/components/MatchModal";
 import DashboardStats from "@/components/DashboardStats";
 import Pipeline from "@/components/Pipeline";
 import AuthForms from "@/components/AuthForms";
-import FounderProfile from "@/components/FounderProfile";
-import InvestorProfile from "@/components/InvestorProfile";
 import VideoUpload from "@/components/VideoUpload";
 import PreferenceChips from "@/components/PreferenceChips";
 import LegalAcceptance from "@/components/LegalAcceptance";
@@ -33,6 +38,7 @@ import PublicProfile from "@/components/PublicProfile";
 import Search from "@/components/Search";
 
 import MessagesPage from './pages/MessagesPage';
+import ProfilePage from '@/components/ProfilePage';
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -271,6 +277,7 @@ function MatchesPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const { onMatchStatusUpdate } = useGlobalPresenceContext();
 
   const { data: matches, isLoading } = useQuery<MatchWithDetails[]>({
     queryKey: ["/api/matches/"],
@@ -302,6 +309,17 @@ function MatchesPage() {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
+
+  useEffect(() => {
+    if (!onMatchStatusUpdate) return;
+
+    const unsubscribe = onMatchStatusUpdate((data) => {
+      // Refetch matches when any match status changes
+      queryClient.invalidateQueries({ queryKey: ["/api/matches/"] });
+    });
+
+    return unsubscribe;
+  }, [onMatchStatusUpdate]);
 
   const pendingMatches = matches?.filter(m => !m.isActive) || [];
   const activeMatches = matches?.filter(m => m.isActive) || [];
@@ -549,283 +567,89 @@ function DashboardPage() {
   );
 }
 
-function ProfilePage() {
-  const { user, profile } = useAuth();
-  const { toast } = useToast();
-  const [showVideoUpload, setShowVideoUpload] = useState(false);
-  const [, setLocation] = useLocation();
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
-  const [localIsLiked, setLocalIsLiked] = useState(false);
-  const [localLikeCount, setLocalLikeCount] = useState(0);
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  const { data: stats } = useQuery<Record<string, number>>({
-    queryKey: ["/api/dashboard/stats"],
-    enabled: user?.role === "founder",
-  });
-
-  // Fetch current video for founders
-  const { data: currentVideoData, refetch } = useQuery({
-    queryKey: ["/api/videos/my/"],
-    queryFn: () => api.get("/api/videos/my/"),
-    enabled: user?.role === "founder",
-    refetchOnWindowFocus: true,
-    refetchInterval: 0,
-  });
+function ImageCropDialog({ 
+  isOpen, 
+  onClose, 
+  imageUrl, 
+  onSave 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  imageUrl: string;
+  onSave: (blob: Blob) => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [scale, setScale] = useState(1);
 
   useEffect(() => {
-    refetch();
-  }, []);
-  
-
-  // Update local like state when video data changes
-  useEffect(() => {
-    if (currentVideoData) {
-      setLocalIsLiked(currentVideoData.isLiked === true);
-      setLocalLikeCount(currentVideoData.likeCount || 0);
-    }
-  }, [currentVideoData?.isLiked, currentVideoData?.likeCount, currentVideoData?.id]);
-
-  const updateProfileMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const endpoint = user?.role === "founder" ? "/api/founder/profile" : "/api/investor/profile";
-      const res = await apiRequest("PUT", endpoint, data);
-      return res.json();
-    },
-    onSuccess: () => {
-      refetch();
-      toast({ title: "Profile updated!" });
-    },
-  });
-
-  const togglePlay = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
-
-  const toggleMute = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
-    }
-  };
-
-  const handleLikeToggle = async () => {
-    if (!currentVideoData?.id) return;
-  
-    const wasLiked = localIsLiked;
-    const wasCount = localLikeCount;
-  
-    // Optimistic update
-    setLocalIsLiked(!wasLiked);
-    setLocalLikeCount(prev => wasLiked ? Math.max(prev - 1, 0) : prev + 1);
-  
-    try {
-      await api.post(`/api/videos/${currentVideoData.id}/like/`, { doubleTap: false });
-      // Refetch to sync with server
-      refetch();
-    } catch (error) {
-      // Rollback on error
-      setLocalIsLiked(wasLiked);
-      setLocalLikeCount(wasCount);
-      console.error("Failed to toggle like:", error);
-    }
-  };  
-
-  const formatCount = (count: number): string => {
-    if (count >= 1000000) {
-      return `${(count / 1000000).toFixed(1)}M`;
-    } else if (count >= 1000) {
-      return `${(count / 1000).toFixed(1)}K`;
-    }
-    return count.toString();
-  };
-
-  if (user?.role === "founder") {
-    const founderProfile = profile as FounderProfile | null;
-    return (
-      <div className="p-4 md:p-8 pb-20 md:pb-8 space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="font-display text-2xl font-bold">Your Profile</h1>
-          <Button variant="outline" onClick={() => setLocation("/videos")}>
-            View All Videos
-          </Button>
-        </div>
-
-        {!showVideoUpload && (
-          <FounderProfile
-            name={user?.name || ""}
-            company={founderProfile?.company_name || ""}
-            location={founderProfile?.location || ""}
-            bio={founderProfile?.bio || ""}
-            sector={founderProfile?.sector || ""}
-            stage={founderProfile?.stage || ""}
-            stats={{
-              views: stats?.totalViews || 0,
-              matches: stats?.activeMatches || 0,
-              responseRate: 0,
-            }}
-            onEditProfile={(data) => updateProfileMutation.mutate(data)}
-            onEditVideo={() => setShowVideoUpload(true)}
-          />
-        )}
-
-        {/* Current Video Section */}
-        {currentVideoData && (
-          <Card>
-            <CardContent className="p-0">
-              <div className="relative aspect-video bg-black rounded-t-lg overflow-hidden">
-                <video
-                  ref={videoRef}
-                  src={currentVideoData.url}
-                  poster={currentVideoData.thumbnailUrl}
-                  className="w-full h-full object-contain"
-                  muted={isMuted}
-                  loop
-                  playsInline
-                  onPlay={() => setIsPlaying(true)}
-                  onPause={() => setIsPlaying(false)}
-                />
-                
-                {/* Play/Pause Overlay */}
-                {!isPlaying && (
-                  <div 
-                    className="absolute inset-0 flex items-center justify-center bg-black/20 cursor-pointer"
-                    onClick={togglePlay}
-                  >
-                    <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                      <Play className="w-8 h-8 text-white ml-1" />
-                    </div>
-                  </div>
-                )}
-
-                {/* Video Controls */}
-                <div className="absolute top-3 right-3 z-10">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm text-white border-0"
-                    onClick={toggleMute}
-                  >
-                    {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-                  </Button>
-                </div>
-
-                {/* Click to play/pause - exclude the mute button area */}
-                <div 
-                  className="absolute inset-0 cursor-pointer"
-                  style={{ clipPath: 'polygon(0 0, calc(100% - 4rem) 0, calc(100% - 4rem) 4rem, 100% 4rem, 100% 100%, 0 100%)' }}
-                  onClick={togglePlay}
-                />
-              </div>
-              
-              <div className="p-4 space-y-3">
-                {currentVideoData.title && (
-                  <h3 className="font-semibold text-lg">{currentVideoData.title}</h3>
-                )}
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Eye className="h-4 w-4" />
-                      <span>{formatCount(currentVideoData.viewCount || 0)} views</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Heart className="h-4 w-4" />
-                      <span>{formatCount(localLikeCount)} likes</span>
-                    </div>
-                    {currentVideoData.status && (
-                      <Badge 
-                        variant={
-                          currentVideoData.status === 'active' ? 'default' :
-                          currentVideoData.status === 'processing' ? 'secondary' : 'destructive'
-                        }
-                      >
-                        {currentVideoData.status}
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* Like button */}
-                  <Button
-                    size="icon"
-                    variant={localIsLiked ? "default" : "outline"}
-                    className={localIsLiked ? "bg-red-500 hover:bg-red-600" : ""}
-                    onClick={handleLikeToggle}
-                  >
-                    <Heart className={`h-5 w-5 ${localIsLiked ? 'fill-white' : ''}`} />
-                  </Button>
-                </div>
-
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
-                  onClick={() => setShowVideoUpload(true)}
-                >
-                  Update Pitch Video
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {!currentVideoData && !showVideoUpload && (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <p className="text-muted-foreground mb-4">You haven't uploaded a pitch video yet</p>
-              <Button onClick={() => setShowVideoUpload(true)}>
-                Upload Your First Pitch
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+    if (isOpen && imageUrl && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        canvas.width = 300;
+        canvas.height = 300;
         
-        {showVideoUpload && (
-          <Card className="max-w-xl overflow-visible">
-            <CardHeader>
-              <CardTitle className="text-lg">
-                {currentVideoData ? "Update Your Pitch" : "Upload Your First Pitch"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <VideoUpload 
-                onSuccess={() => {
-                  setShowVideoUpload(false);
-                  queryClient.invalidateQueries({ queryKey: ["/api/videos/my/"] });
-                }} 
-                onCancel={() => setShowVideoUpload(false)} 
-              />
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    );
-  }
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          
+          const imgWidth = img.width * scale;
+          const imgHeight = img.height * scale;
+          const x = (canvas.width - imgWidth) / 2;
+          const y = (canvas.height - imgHeight) / 2;
+          
+          ctx.drawImage(img, x, y, imgWidth, imgHeight);
+        }
+      };
+      img.src = imageUrl;
+    }
+  }, [isOpen, imageUrl, scale]);
 
-  const investorProfile = profile as InvestorProfileType | null;
+  const handleSave = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.toBlob((blob) => {
+      if (blob) {
+        onSave(blob);
+      }
+    }, "image/jpeg", 0.95);
+  };
+
   return (
-    <div className="p-4 md:p-8 pb-20 md:pb-8">
-      <h1 className="font-display text-2xl font-bold mb-6">Your Profile</h1>
-      <InvestorProfile
-        name={user?.name || ""}
-        firm={investorProfile?.firm_name || ""}
-        role={investorProfile?.title || ""}
-        location=""
-        thesis={investorProfile?.thesis || ""}
-        sectors={investorProfile?.sectors || []}
-        stages={investorProfile?.stages || []}
-        supportTypes={investorProfile?.supportTypes || []}
-        onEditProfile={(data) => updateProfileMutation.mutate(data)}
-      />
-    </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Crop Profile Picture</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="relative border rounded-lg overflow-hidden bg-muted">
+            <canvas ref={canvasRef} className="w-full" />
+            <div 
+              className="absolute inset-0 border-4 border-dashed border-primary/50 rounded-full pointer-events-none" 
+              style={{ margin: '10px' }} 
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Zoom</Label>
+            <input
+              type="range"
+              min="0.5"
+              max="3"
+              step="0.1"
+              value={scale}
+              onChange={(e) => setScale(parseFloat(e.target.value))}
+              className="w-full"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSave}>Save</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1101,10 +925,8 @@ function PublicProfilePage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   
-  // Extract userId from URL path (e.g., /user/123)
   const userId = window.location.pathname.split('/user/')[1];
 
-  // Redirect to personal profile if viewing own profile
   React.useEffect(() => {
     if (user && user.id === userId) {
       setLocation("/profile");
@@ -1114,7 +936,7 @@ function PublicProfilePage() {
   const { data: profileData, isLoading } = useQuery({
     queryKey: [`/api/user/${userId}/profile`],
     queryFn: () => api.get(`/api/user/${userId}/profile`),
-    enabled: !!userId && user?.id !== userId, // Only fetch if not own profile
+    enabled: !!userId && user?.id !== userId,
   });
 
   const handleLike = async (videoId: string) => {
@@ -1171,9 +993,12 @@ function PublicProfilePage() {
       bio={isFounder ? founderProfile?.bio : investorProfile?.thesis || ""}
       
       // Founder specific
-      companyName={founderProfile?.company_name}
+      companyName={founderProfile?.companyName}
       sector={founderProfile?.sector}
       stage={founderProfile?.stage}
+      fundingGoal={founderProfile?.fundingGoal}
+      website={founderProfile?.website}
+      linkedin={founderProfile?.linkedin}
       videoUrl={currentVideo?.url}
       videoThumbnail={currentVideo?.thumbnailUrl}
       videoTitle={currentVideo?.title}
@@ -1183,12 +1008,14 @@ function PublicProfilePage() {
       isLiked={currentVideo?.isLiked}
       
       // Investor specific
-      firmName={investorProfile?.firm_name}
+      firmName={investorProfile?.firmName}
       title={investorProfile?.title}
       thesis={investorProfile?.thesis}
       sectors={investorProfile?.sectors}
       stages={investorProfile?.stages}
-      supportTypes={investorProfile?.support_types}
+      supportTypes={investorProfile?.supportTypes}
+      checkSize={investorProfile?.checkSize}
+      investorLinkedin={investorProfile?.linkedin}
       
       onBack={() => window.history.back()}
       onLike={isFounder ? handleLike : undefined}
@@ -1316,6 +1143,7 @@ function MainApp() {
         activeTab={activeTab}
         onTabChange={handleTabChange}
         notificationCount={0}
+        userAvatar={user?.avatar_url}
         userName={user?.name || "User"}
         isAdmin={user?.role === "admin"}
         onOpenSearch={() => setShowSearchModal(true)}

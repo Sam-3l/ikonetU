@@ -55,7 +55,7 @@ function MessagesPage() {
   const [localMessages, setLocalMessages] = useState<Record<string, Message[]>>({});
   const { toast } = useToast();
   
-  const { getUserStatus, isUserTypingInMatch, sendTypingStatus, onNewMessage, onMessageStatusUpdate } = useGlobalPresenceContext();
+  const { getUserStatus, isUserTypingInMatch, sendTypingStatus, onNewMessage, onMessageStatusUpdate, onMatchStatusUpdate } = useGlobalPresenceContext();
 
   const { data: matches, isLoading } = useQuery<MatchWithDetails[]>({
     queryKey: ["/api/matches/"],
@@ -123,6 +123,17 @@ function MessagesPage() {
 
     return unsubscribe;
   }, [onMessageStatusUpdate]);
+
+  useEffect(() => {
+    if (!onMatchStatusUpdate) return;
+  
+    const unsubscribe = onMatchStatusUpdate((data) => {
+      // Refetch matches when status changes (pending -> active)
+      queryClient.invalidateQueries({ queryKey: ["/api/matches/"] });
+    });
+  
+    return unsubscribe;
+  }, [onMatchStatusUpdate]);
 
   const sendMessageMutation = useMutation({
     mutationFn: async ({ matchId, content }: { matchId: string; content: string }) => {

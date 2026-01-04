@@ -17,6 +17,11 @@ interface MessageStatusUpdate {
   status: 'sent' | 'delivered' | 'read';
 }
 
+interface MatchStatusUpdate {
+  match_id: string;
+  is_active: boolean;
+}
+
 interface GlobalPresenceContextType {
   userStatuses: Record<string, UserStatus>;
   getUserStatus: (userId: string) => UserStatus;
@@ -24,6 +29,7 @@ interface GlobalPresenceContextType {
   sendTypingStatus: (matchId: string, isTyping: boolean) => void;
   onNewMessage: (callback: (data: NewMessageData) => void) => () => void;
   onMessageStatusUpdate: (callback: (data: MessageStatusUpdate) => void) => () => void;
+  onMatchStatusUpdate: (callback: (data: MatchStatusUpdate) => void) => () => void;
 }
 
 const GlobalPresenceContext = createContext<GlobalPresenceContextType | null>(null);
