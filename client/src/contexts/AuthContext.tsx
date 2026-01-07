@@ -141,7 +141,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const login = async (email: string, password: string) => {
-    await loginMutation.mutateAsync({ email, password });
+    const result = await loginMutation.mutateAsync({ email, password });
+    
+    // Redirect admins to admin portal
+    if (result.user.role === "admin") {
+      window.location.href = import.meta.env.VITE_ADMIN_URL || "https://admin.ikonetu.com";
+      return;
+    }
   };
 
   const register = async (data: { email: string; password: string; name: string; role: "founder" | "investor" }) => {

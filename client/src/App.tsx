@@ -31,7 +31,6 @@ import AuthForms from "@/components/AuthForms";
 import VideoUpload from "@/components/VideoUpload";
 import PreferenceChips from "@/components/PreferenceChips";
 import LegalAcceptance from "@/components/LegalAcceptance";
-import AdminPanel from "@/components/AdminPanel";
 import VideoHistory from "@/components/VideoHistory";
 import ReportDialog from "@/components/ReportDialog";
 import PublicProfile from "@/components/PublicProfile";
@@ -47,9 +46,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { Play, Eye, Heart, VolumeX, Volume2 } from "lucide-react";
-import type { Video, FounderProfile as FounderProfileType, InvestorProfile as InvestorProfileType, Match, Message, Signal } from "@shared/schema";
 
+interface Signal {
+  id: string;
+  type: "interested" | "maybe" | "pass";
+  createdAt?: string;
+  investor?: {
+    id: string;
+    name: string;
+    avatarUrl: string | null;
+  } | null;
+}
 
 interface VideoWithFounder {
   id: string;
@@ -670,7 +677,7 @@ function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: any) => {
-      const endpoint = role === "founder" ? "/api/founder/profile" : "/api/investor/profile";
+      const endpoint = role === "founder" ? "/api/profile/founder/profile" : "/api/profile/investor/profile";
       const res = await apiRequest("PUT", endpoint, data);
       return res.json();
     },
@@ -808,118 +815,6 @@ function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
   );
 }
 
-function AdminPage() {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const isAdmin = user?.role === "admin";
-  
-  if (!isAdmin) {
-    return null;
-  }
-  
-  const { data: stats } = useQuery<Record<string, number>>({
-    queryKey: ["/api/dashboard/stats"],
-    enabled: isAdmin,
-  });
-
-  const { data: users } = useQuery<any[]>({
-    queryKey: ["/api/admin/users"],
-    enabled: isAdmin,
-  });
-
-  const { data: videos, refetch: refetchVideos } = useQuery<any[]>({
-    queryKey: ["/api/admin/videos"],
-    enabled: isAdmin,
-  });
-
-  const { data: reports, refetch: refetchReports } = useQuery<any[]>({
-    queryKey: ["/api/admin/reports"],
-    enabled: isAdmin,
-  });
-
-  const updateReportStatusMutation = useMutation({
-    mutationFn: async ({ reportId, status }: { reportId: string; status: string }) => {
-      const res = await apiRequest("PUT", `/api/admin/reports/${reportId}`, { status });
-      return res.json();
-    },
-    onSuccess: () => {
-      refetchReports();
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      toast({ title: "Report status updated" });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const updateVideoStatusMutation = useMutation({
-    mutationFn: async ({ videoId, status }: { videoId: string; status: string }) => {
-      const res = await apiRequest("PUT", `/api/admin/videos/${videoId}/status`, { status });
-      return res.json();
-    },
-    onSuccess: () => {
-      refetchVideos();
-      queryClient.invalidateQueries({ queryKey: ["/api/videos/feed"] });
-      toast({ title: "Video status updated" });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const formattedUsers = (users || []).map(u => ({
-    id: u.id,
-    name: u.name,
-    email: u.email,
-    role: u.role as "founder" | "investor" | "admin",
-    joinDate: new Date(u.createdAt).toLocaleDateString(),
-    status: "active" as const,
-  }));
-
-  const formattedVideos = (videos || []).map(v => ({
-    id: v.id,
-    title: v.title || "Untitled",
-    founderName: v.founder?.name || "Unknown",
-    companyName: v.founder?.companyName || "",
-    status: v.status as "processing" | "active" | "rejected" | "archived",
-    createdAt: new Date(v.createdAt).toLocaleDateString(),
-    thumbnailUrl: v.thumbnailUrl,
-  }));
-
-  const pendingVideos = formattedVideos.filter(v => v.status === "processing").length;
-
-  const moderationQueue = (reports || [])
-    .filter((r: any) => r.status === "pending")
-    .map((r: any) => ({
-      id: r.id,
-      videoId: r.videoId || "",
-      reporterName: r.reporter?.name || "Unknown",
-      founderName: r.reportedUser?.name || "Unknown",
-      reason: r.reason,
-      reportedAt: new Date(r.createdAt).toLocaleDateString(),
-    }));
-
-  return (
-    <div className="p-4 md:p-8 pb-20 md:pb-8">
-      <h1 className="font-display text-2xl font-bold mb-6">Admin Panel</h1>
-      <AdminPanel
-        totalUsers={stats?.totalUsers || users?.length || 0}
-        totalVideos={stats?.totalVideos || videos?.length || 0}
-        pendingModeration={stats?.pendingReports || 0}
-        pendingVideos={pendingVideos}
-        users={formattedUsers}
-        videos={formattedVideos}
-        moderationQueue={moderationQueue}
-        onApproveVideo={(videoId) => updateVideoStatusMutation.mutate({ videoId, status: "active" })}
-        onRejectVideo={(videoId) => updateVideoStatusMutation.mutate({ videoId, status: "rejected" })}
-        onApprove={(reportId) => updateReportStatusMutation.mutate({ reportId, status: "dismissed" })}
-        onWarn={(reportId) => updateReportStatusMutation.mutate({ reportId, status: "reviewed" })}
-        onReject={(reportId) => updateReportStatusMutation.mutate({ reportId, status: "resolved" })}
-      />
-    </div>
-  );
-}
-
 function PublicProfilePage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -1033,11 +928,7 @@ function MainApp() {
   const [showSearchModal, setShowSearchModal] = useState(false);
 
   useEffect(() => {
-    if (user && user.onboarding_complete && user.role === "admin") {
-      setLocation("/admin");
-      setActiveTab("admin");
-    } else if (user && user.onboarding_complete) {
-      // If we're authenticated and on a non-app route, redirect to discover
+    if (user && user.onboarding_complete) {
       const currentPath = window.location.pathname;
       if (currentPath === "/login" || currentPath === "/signup") {
         setLocation("/");
@@ -1105,7 +996,6 @@ function MainApp() {
       matches: "/matches",
       profile: "/profile",
       search: "/search",
-      admin: "/admin"
     };
     
     const route = routes[tab];
@@ -1145,7 +1035,6 @@ function MainApp() {
         notificationCount={0}
         userAvatar={user?.avatar_url}
         userName={user?.name || "User"}
-        isAdmin={user?.role === "admin"}
         onOpenSearch={() => setShowSearchModal(true)}
         onLogout={logout}
       />
@@ -1177,9 +1066,6 @@ function MainApp() {
               <VideoHistory />
             </div>
           )} />
-          <Route path="/admin">
-            {user?.role === "admin" ? <AdminPage /> : <Redirect to="/" />}
-          </Route>
           <Route path="/:rest*">
             {() => {
               const [location] = useLocation();
@@ -1191,7 +1077,6 @@ function MainApp() {
                   !location.startsWith("/user/") && 
                   !location.startsWith("/search") &&
                   !location.startsWith("/videos") && 
-                  !location.startsWith("/admin") &&
                   !location.startsWith("/dashboard")) {
                 return <Redirect to="/" />;
               }
