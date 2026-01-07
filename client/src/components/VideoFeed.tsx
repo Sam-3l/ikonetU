@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import BrandLoader from "@/components/BrandLoader";
 import { Flag } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,6 +56,7 @@ export default function VideoFeed({
   onLike,
   onView,
 }: VideoFeedProps) {
+  const { theme } = useTheme();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(true);
   const [playingStates, setPlayingStates] = useState<Record<number, boolean>>({});
@@ -65,22 +67,27 @@ export default function VideoFeed({
   const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
   const [viewedVideos, setViewedVideos] = useState<Set<string>>(new Set());
   const [loadingStates, setLoadingStates] = useState<Record<number, boolean>>({});
+  const [showLoader, setShowLoader] = useState<Record<number, boolean>>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
-  const isScrolling = useRef(false);
   const touchStartY = useRef(0);
   const lastTap = useRef(0);
   const isDoubleTapping = useRef(false);
+  const loadingTimers = useRef<Record<number, NodeJS.Timeout>>({});
+  const isTransitioning = useRef(false);
 
   const lastSyncedData = useRef<string>('');
 
+  // Get background color based on theme
+  const getBackgroundColor = () => {
+    return theme === 'dark' ? 'black' : 'white';
+  };
+
   React.useEffect(() => {
-    // Create a fingerprint of the current data
     const currentDataKey = founders.map(f => 
       `${f.videoId}-${f.isLiked}-${f.likeCount}-${f.viewCount}`
     ).join('|');
     
-    // Always update state when founders prop changes, regardless of key
     const initialLikes: Record<string, boolean> = {};
     const initialLikeCounts: Record<string, number> = {};
     const initialViewCounts: Record<string, number> = {};
@@ -95,7 +102,7 @@ export default function VideoFeed({
     setLikeCounts(initialLikeCounts);
     setViewCounts(initialViewCounts);
     lastSyncedData.current = currentDataKey;
-  }, [founders, founders.length]); // Trigger on founders change OR length change
+  }, [founders, founders.length]);
 
   // Auto-play current video and pause others
   React.useEffect(() => {
@@ -147,7 +154,6 @@ export default function VideoFeed({
   const handleLikeToggle = async (videoId: string, forceAction?: 'like') => {
     const isCurrentlyLiked = likedVideos[videoId];
     
-    // If forceAction is 'like' and already liked, do nothing
     if (forceAction === 'like' && isCurrentlyLiked) {
       setShowLikeAnimation(true);
       setTimeout(() => setShowLikeAnimation(false), 1000);
@@ -156,7 +162,6 @@ export default function VideoFeed({
     
     const newLikedState = forceAction === 'like' ? true : !isCurrentlyLiked;
     
-    // Optimistic update
     setLikedVideos(prev => ({
       ...prev,
       [videoId]: newLikedState
@@ -173,7 +178,6 @@ export default function VideoFeed({
       setShowLikeAnimation(true);
       setTimeout(() => setShowLikeAnimation(false), 1000);
       
-      // Trigger interested action when liking
       const currentFounder = founders.find(f => f.videoId === videoId);
       if (currentFounder) {
         onInterested?.(currentFounder.id);
@@ -185,7 +189,6 @@ export default function VideoFeed({
         await onLike(videoId, forceAction === 'like');
       } catch (error) {
         console.error("Failed to toggle like:", error);
-        // Rollback on error
         setLikedVideos(prev => ({
           ...prev,
           [videoId]: isCurrentlyLiked
@@ -200,36 +203,120 @@ export default function VideoFeed({
     }
   };
 
+  // Improved scroll handler with precise control
   React.useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
+    let isUserScrolling = false;
+    let scrollEndTimer: NodeJS.Timeout;
+
+    const handleScrollStart = () => {
+      isUserScrolling = true;
+    };
+
     const handleScroll = () => {
-      if (isScrolling.current) return;
-      
-      isScrolling.current = true;
-      const scrollTop = container.scrollTop;
-      const containerHeight = container.clientHeight;
-      const newIndex = Math.round(scrollTop / containerHeight);
-      
-      if (newIndex !== currentIndex && newIndex >= 0 && newIndex < founders.length) {
-        setCurrentIndex(newIndex);
+      if (!isUserScrolling) return;
+
+      if (scrollEndTimer) {
+        clearTimeout(scrollEndTimer);
       }
       
-      setTimeout(() => {
-        isScrolling.current = false;
+      scrollEndTimer = setTimeout(() => {
+        const scrollTop = container.scrollTop;
+        const containerHeight = container.clientHeight;
+        const scrollProgress = scrollTop / containerHeight;
+        
+        // Determine which video we're closest to
+        let targetIndex = Math.round(scrollProgress);
+        
+        // Clamp to valid range
+        targetIndex = Math.max(0, Math.min(targetIndex, founders.length - 1));
+        
+        if (targetIndex !== currentIndex) {
+          setCurrentIndex(targetIndex);
+        }
+        
+        // Snap to the exact position
+        const targetScroll = targetIndex * containerHeight;
+        if (Math.abs(scrollTop - targetScroll) > 1) {
+          container.scrollTo({
+            top: targetScroll,
+            behavior: 'smooth'
+          });
+        }
+        
+        isUserScrolling = false;
       }, 150);
     };
 
+    container.addEventListener('scrollstart', handleScrollStart);
     container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container.removeEventListener('scroll', handleScroll);
+    container.addEventListener('wheel', handleScrollStart, { passive: true });
+    container.addEventListener('touchstart', handleScrollStart, { passive: true });
+    
+    return () => {
+      container.removeEventListener('scrollstart', handleScrollStart);
+      container.removeEventListener('scroll', handleScroll);
+      container.removeEventListener('wheel', handleScrollStart);
+      container.removeEventListener('touchstart', handleScrollStart);
+      if (scrollEndTimer) {
+        clearTimeout(scrollEndTimer);
+      }
+    };
   }, [currentIndex, founders.length]);
 
+  // Handle mouse wheel scrolling for precise one-video-at-a-time navigation
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let wheelTimeout: NodeJS.Timeout;
+    let isWheelScrolling = false;
+
+    const handleWheel = (e: WheelEvent) => {
+      // Prevent default scroll behavior
+      e.preventDefault();
+      
+      if (isWheelScrolling) return;
+      
+      isWheelScrolling = true;
+      
+      // Determine scroll direction
+      const deltaY = e.deltaY;
+      
+      if (deltaY > 0 && currentIndex < founders.length - 1) {
+        // Scroll down - go to next video
+        scrollToVideo(currentIndex + 1);
+      } else if (deltaY < 0 && currentIndex > 0) {
+        // Scroll up - go to previous video
+        scrollToVideo(currentIndex - 1);
+      }
+      
+      // Reset the scrolling flag after animation
+      wheelTimeout = setTimeout(() => {
+        isWheelScrolling = false;
+      }, 600);
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      if (wheelTimeout) {
+        clearTimeout(wheelTimeout);
+      }
+    };
+  }, [currentIndex, founders.length]);
+
+  // Handle keyboard navigation
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown' && currentIndex < founders.length - 1) {
+        e.preventDefault();
         scrollToVideo(currentIndex + 1);
       } else if (e.key === 'ArrowUp' && currentIndex > 0) {
+        e.preventDefault();
         scrollToVideo(currentIndex - 1);
       }
     };
@@ -237,33 +324,50 @@ export default function VideoFeed({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentIndex, founders.length]);
-
   React.useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
+    let startY = 0;
+    let isDragging = false;
+
     const handleTouchStart = (e: TouchEvent) => {
-      touchStartY.current = e.touches[0].clientY;
+      startY = e.touches[0].clientY;
+      isDragging = true;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDragging) return;
+      e.preventDefault();
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-      const touchEndY = e.changedTouches[0].clientY;
-      const deltaY = touchStartY.current - touchEndY;
+      if (!isDragging) return;
+      isDragging = false;
       
-      if (Math.abs(deltaY) > 50) {
+      const endY = e.changedTouches[0].clientY;
+      const deltaY = startY - endY;
+      const threshold = 75;
+      
+      if (Math.abs(deltaY) > threshold) {
         if (deltaY > 0 && currentIndex < founders.length - 1) {
           scrollToVideo(currentIndex + 1);
         } else if (deltaY < 0 && currentIndex > 0) {
           scrollToVideo(currentIndex - 1);
         }
+      } else {
+        // Snap back to current if swipe wasn't strong enough
+        scrollToVideo(currentIndex);
       }
     };
 
-    container.addEventListener('touchstart', handleTouchStart);
-    container.addEventListener('touchend', handleTouchEnd);
+    container.addEventListener('touchstart', handleTouchStart, { passive: true });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd, { passive: true });
     
     return () => {
       container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
       container.removeEventListener('touchend', handleTouchEnd);
     };
   }, [currentIndex, founders.length]);
@@ -273,10 +377,14 @@ export default function VideoFeed({
     if (!container) return;
     
     const containerHeight = container.clientHeight;
+    const targetScroll = index * containerHeight;
+    
+    // Force immediate scroll to exact position
     container.scrollTo({
-      top: index * containerHeight,
+      top: targetScroll,
       behavior: 'smooth'
     });
+    
     setCurrentIndex(index);
   };
 
@@ -334,24 +442,23 @@ export default function VideoFeed({
   };
 
   const handleDoubleTap = (e: React.MouseEvent) => {
-      const now = Date.now();
-      const DOUBLE_TAP_DELAY = 300;
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+    
+    if (now - lastTap.current < DOUBLE_TAP_DELAY) {
+      e.stopPropagation();
+      e.preventDefault();
+      isDoubleTapping.current = true;
+      handleLikeToggle(founders[currentIndex].videoId, 'like');
       
-      if (now - lastTap.current < DOUBLE_TAP_DELAY) {
-        e.stopPropagation();
-        e.preventDefault();
-        isDoubleTapping.current = true;
-        handleLikeToggle(founders[currentIndex].videoId, 'like');
-        
-        // Reset the double tap flag after a delay
-        setTimeout(() => {
-          isDoubleTapping.current = false;
-        }, 400);
-        
-        lastTap.current = 0;
-      } else {
-        lastTap.current = now;
-      }
+      setTimeout(() => {
+        isDoubleTapping.current = false;
+      }, 400);
+      
+      lastTap.current = 0;
+    } else {
+      lastTap.current = now;
+    }
   };
 
   const toggleMute = () => {
@@ -389,8 +496,13 @@ export default function VideoFeed({
   return (
     <div 
       ref={containerRef}
-      className="h-full w-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
-      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      className="h-full w-full overflow-hidden snap-y snap-mandatory scrollbar-hide"
+      style={{ 
+        scrollbarWidth: 'none', 
+        msOverflowStyle: 'none',
+        WebkitOverflowScrolling: 'touch',
+        overscrollBehavior: 'none'
+      }}
       data-testid="video-feed"
     >
       <style>{`
@@ -402,14 +514,15 @@ export default function VideoFeed({
       {founders.map((founder, index) => (
         <div 
           key={founder.id}
-          className="relative h-full w-full snap-start snap-always bg-black flex items-center justify-center"
+          className="relative h-full w-full snap-start snap-always flex items-center justify-center"
+          style={{ backgroundColor: getBackgroundColor() }}
         >
           <div
             className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 pointer-events-none"
             style={{ zIndex: 1 }}
           />
 
-          <div className="absolute inset-0 flex items-center justify-center bg-black">
+          <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: getBackgroundColor() }}>
             {founder.videoUrl ? (
               <>
                 <video
@@ -427,23 +540,42 @@ export default function VideoFeed({
                   data-testid="video-player"
                   onLoadStart={() => {
                     setLoadingStates(prev => ({ ...prev, [index]: true }));
+                    
+                    // Only show loader after 800ms delay
+                    loadingTimers.current[index] = setTimeout(() => {
+                      if (loadingStates[index]) {
+                        setShowLoader(prev => ({ ...prev, [index]: true }));
+                      }
+                    }, 800);
                   }}
                   onLoadedData={() => {
+                    if (loadingTimers.current[index]) {
+                      clearTimeout(loadingTimers.current[index]);
+                    }
                     setLoadingStates(prev => ({ ...prev, [index]: false }));
+                    setShowLoader(prev => ({ ...prev, [index]: false }));
                   }}
                   onCanPlay={() => {
+                    if (loadingTimers.current[index]) {
+                      clearTimeout(loadingTimers.current[index]);
+                    }
                     setLoadingStates(prev => ({ ...prev, [index]: false }));
+                    setShowLoader(prev => ({ ...prev, [index]: false }));
                   }}
                   onError={(e) => {
                     console.error("Video load error:", e);
+                    if (loadingTimers.current[index]) {
+                      clearTimeout(loadingTimers.current[index]);
+                    }
                     setLoadingStates(prev => ({ ...prev, [index]: false }));
+                    setShowLoader(prev => ({ ...prev, [index]: false }));
                   }}
                   onPlay={() => setPlayingStates(prev => ({ ...prev, [index]: true }))}
                   onPause={() => setPlayingStates(prev => ({ ...prev, [index]: false }))}
                 />
 
-                {/* Loading overlay - show while video is loading */}
-                {loadingStates[index] && (
+                {/* Loading overlay - only show after delay */}
+                {showLoader[index] && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-[5]">
                     <BrandLoader text="Loading video..." size="lg" />
                   </div>
@@ -455,12 +587,11 @@ export default function VideoFeed({
                     if (isDoubleTapping.current) {
                       e.preventDefault();
                       e.stopPropagation();
-                      return; // Don't do anything if it's part of a double tap
+                      return;
                     }
                     
                     handleDoubleTap(e);
                     
-                    // Only play/pause if not in the middle of a potential double tap
                     setTimeout(() => {
                       if (!isDoubleTapping.current && Date.now() - lastTap.current > 300) {
                         togglePlay(e, index);
@@ -477,7 +608,7 @@ export default function VideoFeed({
                 </div>
               </div>
             )}
-            {!playingStates[index] && founder.videoUrl && (
+            {!playingStates[index] && founder.videoUrl && !showLoader[index] && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none z-[3]">
                 <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
                   <Play className="w-10 h-10 text-white ml-1" />
