@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useLocation } from "wouter";
 
 interface AuthFormsProps {
   onLogin?: (email: string, password: string) => void;
@@ -20,21 +21,34 @@ export default function AuthForms({ onLogin, onSignup }: AuthFormsProps) {
   const [signupPassword, setSignupPassword] = useState("");
   const [signupRole, setSignupRole] = useState<"founder" | "investor">("founder");
   const [isLoading, setIsLoading] = useState(false);
+  const [, setLocation] = useLocation();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return; // Prevent multiple submissions
+    
     setIsLoading(true);
-    await new Promise((r) => setTimeout(r, 500));
-    onLogin?.(loginEmail, loginPassword);
-    setIsLoading(false);
+    try {
+      await onLogin?.(loginEmail, loginPassword);
+    } catch (error) {
+      // Error handling is done in parent component
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return; // Prevent multiple submissions
+    
     setIsLoading(true);
-    await new Promise((r) => setTimeout(r, 500));
-    onSignup?.({ email: signupEmail, password: signupPassword, name: signupName, role: signupRole });
-    setIsLoading(false);
+    try {
+      await onSignup?.({ email: signupEmail, password: signupPassword, name: signupName, role: signupRole });
+    } catch (error) {
+      // Error handling is done in parent component
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -95,6 +109,16 @@ export default function AuthForms({ onLogin, onSignup }: AuthFormsProps) {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                </div>
+
+                <div className="flex items-center justify-end">
+                  <button
+                    type="button"
+                    className="text-sm text-primary hover:underline focus:underline focus:outline-none"
+                    onClick={() => setLocation("/forgot-password")}
+                  >
+                    Forgot password?
+                  </button>
                 </div>
 
                 <Button type="submit" className="w-full" disabled={isLoading} data-testid="button-login">

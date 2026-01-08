@@ -38,6 +38,9 @@ import ReportDialog from "@/components/ReportDialog";
 import PublicProfile from "@/components/PublicProfile";
 import Search from "@/components/Search";
 import NotificationCenter from "@/components/NotificationCenter";
+import EmailVerification from "@/components/EmailVerification";
+import ForgotPassword from "@/components/ForgotPassword";
+import ResetPassword from "@/components/ResetPassword";
 
 import MessagesPage from './pages/MessagesPage';
 import ProfilePage from '@/components/ProfilePage';
@@ -940,6 +943,8 @@ function MainApp() {
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationWsRef = useRef<NotificationWebSocket | null>(null);
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+  const [showEmailVerification, setShowEmailVerification] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState("");
 
   // Initialize push notifications on mount
   useEffect(() => {
@@ -1056,15 +1061,75 @@ function MainApp() {
       await login(email, password);
       setLocation("/");
     } catch (error: any) {
-      toast({ title: "Login failed", description: error.message, variant: "destructive" });
+      // Handle email verification error
+      if (error.message === 'EMAIL_NOT_VERIFIED' || 
+          error.message?.toLowerCase().includes('verify') ||
+          error.message?.toLowerCase().includes('verification')) {
+        setVerificationEmail(email);
+        setShowEmailVerification(true);
+        toast({ 
+          title: "Email not verified", 
+          description: "Please verify your email before logging in. Check your inbox for the verification code.",
+          variant: "destructive" 
+        });
+        return;
+      }
+      
+      // Handle other errors with user-friendly messages
+      let errorMessage = "Unable to log in. Please check your credentials.";
+      
+      if (error.message?.toLowerCase().includes('password')) {
+        errorMessage = "Incorrect password. Please try again.";
+      } else if (error.message?.toLowerCase().includes('email') || error.message?.toLowerCase().includes('user')) {
+        errorMessage = "No account found with this email.";
+      } else if (error.message?.toLowerCase().includes('network') || error.message?.toLowerCase().includes('connection')) {
+        errorMessage = "Connection error. Please check your internet and try again.";
+      } else if (error.message && error.message.length < 100) {
+        // If the error message is short enough, show it
+        errorMessage = error.message;
+      }
+      
+      toast({ 
+        title: "Login failed", 
+        description: errorMessage, 
+        variant: "destructive" 
+      });
     }
   };
 
   const handleSignup = async (data: { email: string; password: string; name: string; role: "founder" | "investor" }) => {
     try {
-      await register(data);
+      const result = await register(data);
+      
+      // Always show verification screen after successful registration
+      setVerificationEmail(data.email);
+      setShowEmailVerification(true);
+      toast({ 
+        title: "Account created!", 
+        description: "Please check your email for the verification code" 
+      });
     } catch (error: any) {
-      toast({ title: "Signup failed", description: error.message, variant: "destructive" });
+      // Handle user-friendly error messages
+      let errorMessage = "Unable to create account. Please try again.";
+      
+      if (error.message?.toLowerCase().includes('email') && error.message?.toLowerCase().includes('already')) {
+        errorMessage = "This email is already registered. Please log in instead.";
+      } else if (error.message?.toLowerCase().includes('password')) {
+        errorMessage = "Password must be at least 6 characters long.";
+      } else if (error.message?.toLowerCase().includes('name')) {
+        errorMessage = "Please provide a valid name.";
+      } else if (error.message?.toLowerCase().includes('network') || error.message?.toLowerCase().includes('connection')) {
+        errorMessage = "Connection error. Please check your internet and try again.";
+      } else if (error.message && error.message.length < 100) {
+        // If the error message is short enough, show it
+        errorMessage = error.message;
+      }
+      
+      toast({ 
+        title: "Signup failed", 
+        description: errorMessage, 
+        variant: "destructive" 
+      });
     }
   };
 
@@ -1118,9 +1183,67 @@ function MainApp() {
   }
 
   if (!isAuthenticated) {
+    // Show email verification screen
+    if (showEmailVerification) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background to-muted/30">
+          <EmailVerification
+            email={verificationEmail}
+            onVerified={() => {
+              setShowEmailVerification(false);
+              setVerificationEmail("");
+              toast({ title: "Email verified!", description: "You can now log in" });
+            }}
+            onCancel={() => {
+              setShowEmailVerification(false);
+              setVerificationEmail("");
+            }}
+          />
+        </div>
+      );
+    }
+  
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background to-muted/30">
-        <AuthForms onLogin={handleLogin} onSignup={handleSignup} />
+        <Switch>
+          <Route path="/forgot-password">
+            <ForgotPassword onBack={() => setLocation("/")} />
+          </Route>
+          
+          <Route path="/reset-password">
+            {() => {
+              const params = new URLSearchParams(window.location.search);
+              const token = params.get("token");
+              
+              if (!token) {
+                return (
+                  <Card className="w-full max-w-md mx-auto">
+                    <CardContent className="pt-6 text-center">
+                      <p className="text-muted-foreground">Invalid reset link</p>
+                      <Button onClick={() => setLocation("/")} className="mt-4">
+                        Back to Login
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              }
+              
+              return (
+                <ResetPassword
+                  token={token}
+                  onSuccess={() => {
+                    toast({ title: "Password reset successful!" });
+                    setLocation("/");
+                  }}
+                />
+              );
+            }}
+          </Route>
+          
+          <Route>
+            <AuthForms onLogin={handleLogin} onSignup={handleSignup} />
+          </Route>
+        </Switch>
       </div>
     );
   }

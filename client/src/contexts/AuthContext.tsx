@@ -87,11 +87,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: async ({ email, password }: { email: string; password: string }) => {
-      // Clear any existing token before login attempt
       localStorage.removeItem('auth_token');
       
       const res = await apiRequest("POST", "/api/auth/login", { email, password });
       const data = await res.json();
+      
+      // Check if email verification required
+      if (data.requires_verification) {
+        throw new Error('EMAIL_NOT_VERIFIED');
+      }
       
       if (data.token) {
         localStorage.setItem('auth_token', data.token);
@@ -108,11 +112,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (data: { email: string; password: string; name: string; role: "founder" | "investor" }) => {
-      // Clear any existing token before registration attempt
       localStorage.removeItem('auth_token');
       
       const res = await apiRequest("POST", "/api/auth/register", data);
       const responseData = await res.json();
+      
+      // DON'T set token if verification required
+      if (responseData.requires_verification) {
+        return responseData;
+      }
       
       if (responseData.token) {
         localStorage.setItem('auth_token', responseData.token);
@@ -121,9 +129,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return responseData;
     },
     onSuccess: (data) => {
-      setUser(data.user);
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      refetch();
+      // Only set user if no verification required
+      if (!data.requires_verification) {
+        setUser(data.user);
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+        refetch();
+      }
     },
   });
 
