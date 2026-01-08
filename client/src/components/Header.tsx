@@ -11,29 +11,40 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/apiClient";
 
 interface HeaderProps {
   activeTab?: string;
   onTabChange?: (tab: string) => void;
-  notificationCount?: number;
   userAvatar?: string;
   userName?: string;
   isAdmin?: boolean;
   onOpenSearch?: () => void;
+  onOpenNotifications?: () => void; // ← ADD THIS
   onLogout?: () => void;
 }
 
 export default function Header({
   activeTab = "discover",
   onTabChange,
-  notificationCount = 0,
   userAvatar,
   userName = "User",
   isAdmin = false,
   onLogout,
   onOpenSearch,
+  onOpenNotifications,
 }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
+
+  // Fetch unread count
+  const { data: unreadData } = useQuery<{ count: number }>({
+    queryKey: ["/api/notifications/unread-count/"],
+    queryFn: () => api.get("/api/notifications/unread-count/"),
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
+  const unreadCount = unreadData?.count || 0;
 
   const navItems = [
     { id: "discover", label: "Discover" },
@@ -87,15 +98,19 @@ export default function Header({
             {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
 
-          <Button size="icon" variant="ghost" className="relative" data-testid="button-notifications">
+          {/* Notification Bell */}
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            className="relative" 
+            onClick={onOpenNotifications}
+            data-testid="button-notifications"
+          >
             <Bell className="h-5 w-5" />
-            {notificationCount > 0 && (
-              <Badge
-                variant="destructive"
-                className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center"
-              >
-                {notificationCount > 9 ? "9+" : notificationCount}
-              </Badge>
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
             )}
           </Button>
 

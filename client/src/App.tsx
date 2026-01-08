@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useRef } from "react";
+import { Bell } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Camera, Globe, Linkedin, TrendingUp } from "lucide-react";
@@ -18,6 +19,7 @@ import { Check, X, Edit2, Briefcase, MapPin, User, FileText } from "lucide-react
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { NotificationWebSocket } from "@/lib/notificationWebSocket";
 
 import React from "react";
 
@@ -35,6 +37,7 @@ import VideoHistory from "@/components/VideoHistory";
 import ReportDialog from "@/components/ReportDialog";
 import PublicProfile from "@/components/PublicProfile";
 import Search from "@/components/Search";
+import NotificationCenter from "@/components/NotificationCenter";
 
 import MessagesPage from './pages/MessagesPage';
 import ProfilePage from '@/components/ProfilePage';
@@ -46,6 +49,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+
+import { 
+  requestNotificationPermission, 
+  registerServiceWorker, 
+  showBrowserNotification,
+  canShowNotifications 
+} from "@/lib/pushNotifications";
+
 
 interface Signal {
   id: string;
@@ -926,6 +937,65 @@ function MainApp() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [, setLocation] = useLocation();
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notificationWsRef = useRef<NotificationWebSocket | null>(null);
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+
+  // Initialize push notifications on mount
+  useEffect(() => {
+    if (user && isAuthenticated) {
+      // Request permission and register service worker
+      const initPushNotifications = async () => {
+        await registerServiceWorker();
+        await requestNotificationPermission();
+      };
+      
+      initPushNotifications();
+    }
+  }, [user, isAuthenticated]);
+
+  // WebSocket notification handler with push notifications
+  useEffect(() => {
+    if (user && isAuthenticated) {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
+      const notificationWs = new NotificationWebSocket();
+      notificationWs.connect(token);
+      notificationWsRef.current = notificationWs;
+
+      const unsubscribe = notificationWs.onNotification((data) => {
+        if (data.type === 'notification') {
+          // Refetch counts
+          queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count/"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/notifications/"] });
+
+          // Show in-app toast
+          toast({
+            title: data.notification.title,
+            description: data.notification.message,
+            duration: 5000,
+          });
+
+          // Show browser push notification if:
+          // 1. Page is not focused OR
+          // 2. User has granted permission
+          if (!document.hasFocus() || canShowNotifications()) {
+            showBrowserNotification(
+              data.notification.title,
+              data.notification.message,
+              data.notification.action_url
+            );
+          }
+        }
+      });
+
+      return () => {
+        unsubscribe();
+        notificationWs.disconnect();
+      };
+    }
+  }, [user, isAuthenticated, toast]);
 
   useEffect(() => {
     if (user && user.onboarding_complete) {
@@ -944,6 +1014,18 @@ function MainApp() {
       setShowOnboarding(false);
     }
   }, [user]);
+
+  // Check if we should show notification prompt
+  useEffect(() => {
+    if (user && isAuthenticated) {
+      const hasAskedBefore = localStorage.getItem('notification_permission_asked');
+      const permission = typeof Notification !== 'undefined' ? Notification.permission : 'granted';
+      
+      if (!hasAskedBefore && permission === 'default') {
+        setShowNotificationPrompt(true);
+      }
+    }
+  }, [user, isAuthenticated]);
 
   useEffect(() => {
     // Sync activeTab with current location
@@ -1004,6 +1086,26 @@ function MainApp() {
     }
   };
 
+  const handleEnableNotifications = async () => {
+    const granted = await requestNotificationPermission();
+    localStorage.setItem('notification_permission_asked', 'true');
+    setShowNotificationPrompt(false);
+    
+    if (granted) {
+      toast({ title: "🔔 Notifications enabled!" });
+    } else {
+      toast({ 
+        title: "Notifications blocked", 
+        description: "You can enable them in browser settings later",
+      });
+    }
+  };
+
+  const handleDismissPrompt = () => {
+    localStorage.setItem('notification_permission_asked', 'true');
+    setShowNotificationPrompt(false);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -1032,13 +1134,46 @@ function MainApp() {
       <Header
         activeTab={activeTab}
         onTabChange={handleTabChange}
-        notificationCount={0}
         userAvatar={user?.avatar_url}
         userName={user?.name || "User"}
         onOpenSearch={() => setShowSearchModal(true)}
+        onOpenNotifications={() => setShowNotifications(true)}
         onLogout={logout}
       />
 
+      {/* Notification Permission Banner */}
+      {showNotificationPrompt && (
+        <div className="bg-primary text-primary-foreground py-3 px-4 md:px-8">
+          <div className="flex items-center justify-between gap-4 max-w-4xl mx-auto">
+            <div className="flex items-center gap-3">
+              <Bell className="h-5 w-5 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-sm">Stay updated with notifications</p>
+                <p className="text-xs opacity-90">Get notified about new matches and messages</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                size="sm" 
+                variant="secondary"
+                onClick={handleEnableNotifications}
+              >
+                Enable
+              </Button>
+              <Button 
+                size="sm" 
+                variant="ghost"
+                onClick={handleDismissPrompt}
+                className="text-primary-foreground hover:bg-primary-foreground/10"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Search Modal */}
       {showSearchModal && (
         <div className="fixed inset-0 z-50 bg-background">
           <Search
@@ -1049,6 +1184,17 @@ function MainApp() {
             }}
           />
         </div>
+      )}
+
+      {/* Notification Center Modal */}
+      {showNotifications && (
+        <NotificationCenter
+          onClose={() => setShowNotifications(false)}
+          onNavigate={(url) => {
+            setShowNotifications(false);
+            setLocation(url);
+          }}
+        />
       )}
 
       <main>
