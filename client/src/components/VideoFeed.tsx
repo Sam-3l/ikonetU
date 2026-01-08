@@ -75,6 +75,7 @@ export default function VideoFeed({
   const isDoubleTapping = useRef(false);
   const loadingTimers = useRef<Record<number, NodeJS.Timeout>>({});
   const isTransitioning = useRef(false);
+  const pendingLikeActions = useRef<Set<string>>(new Set());
 
   const lastSyncedData = useRef<string>('');
 
@@ -83,26 +84,36 @@ export default function VideoFeed({
     return theme === 'dark' ? 'black' : 'white';
   };
 
+  // Sync with server data but preserve optimistic updates
   React.useEffect(() => {
     const currentDataKey = founders.map(f => 
       `${f.videoId}-${f.isLiked}-${f.likeCount}-${f.viewCount}`
     ).join('|');
     
-    const initialLikes: Record<string, boolean> = {};
-    const initialLikeCounts: Record<string, number> = {};
-    const initialViewCounts: Record<string, number> = {};
+    if (currentDataKey === lastSyncedData.current) return;
+    
+    const newLikes: Record<string, boolean> = {};
+    const newLikeCounts: Record<string, number> = {};
+    const newViewCounts: Record<string, number> = {};
     
     founders.forEach(founder => {
-      initialLikes[founder.videoId] = founder.isLiked || false;
-      initialLikeCounts[founder.videoId] = founder.likeCount || 0;
-      initialViewCounts[founder.videoId] = founder.viewCount || 0;
+      // Only update from server if there's no pending action for this video
+      if (!pendingLikeActions.current.has(founder.videoId)) {
+        newLikes[founder.videoId] = founder.isLiked || false;
+        newLikeCounts[founder.videoId] = founder.likeCount || 0;
+      } else {
+        // Keep optimistic state for pending actions
+        newLikes[founder.videoId] = likedVideos[founder.videoId] ?? (founder.isLiked || false);
+        newLikeCounts[founder.videoId] = likeCounts[founder.videoId] ?? (founder.likeCount || 0);
+      }
+      newViewCounts[founder.videoId] = founder.viewCount || 0;
     });
     
-    setLikedVideos(initialLikes);
-    setLikeCounts(initialLikeCounts);
-    setViewCounts(initialViewCounts);
+    setLikedVideos(newLikes);
+    setLikeCounts(newLikeCounts);
+    setViewCounts(newViewCounts);
     lastSyncedData.current = currentDataKey;
-  }, [founders, founders.length]);
+  }, [founders]);
 
   // Auto-play current video and pause others
   React.useEffect(() => {
@@ -152,6 +163,11 @@ export default function VideoFeed({
   };
 
   const handleLikeToggle = async (videoId: string, forceAction?: 'like') => {
+    // Prevent duplicate actions
+    if (pendingLikeActions.current.has(videoId)) {
+      return;
+    }
+    
     const isCurrentlyLiked = likedVideos[videoId];
     
     if (forceAction === 'like' && isCurrentlyLiked) {
@@ -162,6 +178,10 @@ export default function VideoFeed({
     
     const newLikedState = forceAction === 'like' ? true : !isCurrentlyLiked;
     
+    // Mark as pending
+    pendingLikeActions.current.add(videoId);
+    
+    // Optimistic update - immediate UI change
     setLikedVideos(prev => ({
       ...prev,
       [videoId]: newLikedState
@@ -187,8 +207,13 @@ export default function VideoFeed({
     if (onLike) {
       try {
         await onLike(videoId, forceAction === 'like');
+        // Remove from pending after successful completion
+        setTimeout(() => {
+          pendingLikeActions.current.delete(videoId);
+        }, 500);
       } catch (error) {
         console.error("Failed to toggle like:", error);
+        // Rollback on error
         setLikedVideos(prev => ({
           ...prev,
           [videoId]: isCurrentlyLiked
@@ -199,175 +224,112 @@ export default function VideoFeed({
             ? (prev[videoId] || 0) + 1 
             : Math.max((prev[videoId] || 0) - 1, 0)
         }));
+        pendingLikeActions.current.delete(videoId);
       }
     }
   };
 
-  // Improved scroll handler with precise control
+  // STRONG SCROLL CONTROL - Prevents overscrolling
   React.useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
-    let isUserScrolling = false;
-    let scrollEndTimer: NodeJS.Timeout;
-
-    const handleScrollStart = () => {
-      isUserScrolling = true;
-    };
-
-    const handleScroll = () => {
-      if (!isUserScrolling) return;
-
-      if (scrollEndTimer) {
-        clearTimeout(scrollEndTimer);
-      }
-      
-      scrollEndTimer = setTimeout(() => {
-        const scrollTop = container.scrollTop;
-        const containerHeight = container.clientHeight;
-        const scrollProgress = scrollTop / containerHeight;
-        
-        // Determine which video we're closest to
-        let targetIndex = Math.round(scrollProgress);
-        
-        // Clamp to valid range
-        targetIndex = Math.max(0, Math.min(targetIndex, founders.length - 1));
-        
-        if (targetIndex !== currentIndex) {
-          setCurrentIndex(targetIndex);
-        }
-        
-        // Snap to the exact position
-        const targetScroll = targetIndex * containerHeight;
-        if (Math.abs(scrollTop - targetScroll) > 1) {
-          container.scrollTo({
-            top: targetScroll,
-            behavior: 'smooth'
-          });
-        }
-        
-        isUserScrolling = false;
-      }, 150);
-    };
-
-    container.addEventListener('scrollstart', handleScrollStart);
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    container.addEventListener('wheel', handleScrollStart, { passive: true });
-    container.addEventListener('touchstart', handleScrollStart, { passive: true });
-    
-    return () => {
-      container.removeEventListener('scrollstart', handleScrollStart);
-      container.removeEventListener('scroll', handleScroll);
-      container.removeEventListener('wheel', handleScrollStart);
-      container.removeEventListener('touchstart', handleScrollStart);
-      if (scrollEndTimer) {
-        clearTimeout(scrollEndTimer);
-      }
-    };
-  }, [currentIndex, founders.length]);
-
-  // Handle mouse wheel scrolling for precise one-video-at-a-time navigation
-  React.useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    let wheelTimeout: NodeJS.Timeout;
-    let isWheelScrolling = false;
 
     const handleWheel = (e: WheelEvent) => {
-      // Prevent default scroll behavior
       e.preventDefault();
+      e.stopPropagation();
       
-      if (isWheelScrolling) return;
+      if (isTransitioning.current) return;
       
-      isWheelScrolling = true;
+      isTransitioning.current = true;
       
-      // Determine scroll direction
-      const deltaY = e.deltaY;
-      
-      if (deltaY > 0 && currentIndex < founders.length - 1) {
-        // Scroll down - go to next video
+      if (e.deltaY > 0 && currentIndex < founders.length - 1) {
         scrollToVideo(currentIndex + 1);
-      } else if (deltaY < 0 && currentIndex > 0) {
-        // Scroll up - go to previous video
+      } else if (e.deltaY < 0 && currentIndex > 0) {
         scrollToVideo(currentIndex - 1);
+      } else {
+        isTransitioning.current = false;
       }
       
-      // Reset the scrolling flag after animation
-      wheelTimeout = setTimeout(() => {
-        isWheelScrolling = false;
-      }, 600);
+      setTimeout(() => {
+        isTransitioning.current = false;
+      }, 800);
+    };
+
+    const handleScroll = (e: Event) => {
+      if (isTransitioning.current) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
+    container.addEventListener('scroll', handleScroll, { passive: false });
     
     return () => {
       container.removeEventListener('wheel', handleWheel);
-      if (wheelTimeout) {
-        clearTimeout(wheelTimeout);
-      }
+      container.removeEventListener('scroll', handleScroll);
     };
   }, [currentIndex, founders.length]);
 
-  // Handle keyboard navigation
+  // Keyboard navigation
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isTransitioning.current) return;
+      
       if (e.key === 'ArrowDown' && currentIndex < founders.length - 1) {
         e.preventDefault();
+        isTransitioning.current = true;
         scrollToVideo(currentIndex + 1);
+        setTimeout(() => { isTransitioning.current = false; }, 800);
       } else if (e.key === 'ArrowUp' && currentIndex > 0) {
         e.preventDefault();
+        isTransitioning.current = true;
         scrollToVideo(currentIndex - 1);
+        setTimeout(() => { isTransitioning.current = false; }, 800);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentIndex, founders.length]);
+
+  // Touch navigation - FIRM CONTROL
   React.useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    let startY = 0;
-    let isDragging = false;
-
     const handleTouchStart = (e: TouchEvent) => {
-      startY = e.touches[0].clientY;
-      isDragging = true;
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!isDragging) return;
-      e.preventDefault();
+      touchStartY.current = e.touches[0].clientY;
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-      if (!isDragging) return;
-      isDragging = false;
+      if (isTransitioning.current) return;
       
-      const endY = e.changedTouches[0].clientY;
-      const deltaY = startY - endY;
-      const threshold = 75;
+      const touchEndY = e.changedTouches[0].clientY;
+      const deltaY = touchStartY.current - touchEndY;
       
-      if (Math.abs(deltaY) > threshold) {
+      if (Math.abs(deltaY) > 50) {
+        isTransitioning.current = true;
+        
         if (deltaY > 0 && currentIndex < founders.length - 1) {
           scrollToVideo(currentIndex + 1);
         } else if (deltaY < 0 && currentIndex > 0) {
           scrollToVideo(currentIndex - 1);
+        } else {
+          isTransitioning.current = false;
         }
-      } else {
-        // Snap back to current if swipe wasn't strong enough
-        scrollToVideo(currentIndex);
+        
+        setTimeout(() => {
+          isTransitioning.current = false;
+        }, 800);
       }
     };
 
     container.addEventListener('touchstart', handleTouchStart, { passive: true });
-    container.addEventListener('touchmove', handleTouchMove, { passive: false });
     container.addEventListener('touchend', handleTouchEnd, { passive: true });
     
     return () => {
       container.removeEventListener('touchstart', handleTouchStart);
-      container.removeEventListener('touchmove', handleTouchMove);
       container.removeEventListener('touchend', handleTouchEnd);
     };
   }, [currentIndex, founders.length]);
@@ -459,6 +421,29 @@ export default function VideoFeed({
     } else {
       lastTap.current = now;
     }
+  };
+
+  const handleVideoClick = (e: React.MouseEvent, index: number) => {
+    // Don't do anything if we're transitioning between videos
+    if (isTransitioning.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    
+    if (isDoubleTapping.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    
+    handleDoubleTap(e);
+    
+    setTimeout(() => {
+      if (!isDoubleTapping.current && Date.now() - lastTap.current > 300) {
+        togglePlay(e, index);
+      }
+    }, 320);
   };
 
   const toggleMute = () => {
@@ -583,21 +568,7 @@ export default function VideoFeed({
 
                 <div 
                   className="absolute inset-0 cursor-pointer z-[2]"
-                  onClick={(e) => {
-                    if (isDoubleTapping.current) {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      return;
-                    }
-                    
-                    handleDoubleTap(e);
-                    
-                    setTimeout(() => {
-                      if (!isDoubleTapping.current && Date.now() - lastTap.current > 300) {
-                        togglePlay(e, index);
-                      }
-                    }, 320);
-                  }}
+                  onClick={(e) => handleVideoClick(e, index)}
                 />
               </>
             ) : (
@@ -625,8 +596,8 @@ export default function VideoFeed({
 
           {index === currentIndex && (
             <>
-              {/* Founder info - bottom left */}
-              <div className="absolute bottom-4 left-4 right-20 z-10 pb-safe" data-testid="founder-info-overlay">
+              {/* Founder info - bottom left with safe area padding */}
+              <div className="absolute bottom-4 left-4 right-20 z-10 pb-20 md:pb-4" data-testid="founder-info-overlay">
                 <div className="flex items-start gap-3 mb-2">
                   <Avatar className="h-10 w-10 border-2 border-white/50">
                     <AvatarImage src={founder.avatar} />
@@ -661,22 +632,25 @@ export default function VideoFeed({
                 </div>
               </div>
 
-              {/* Action buttons - bottom right */}
-              <div className="absolute right-3 bottom-4 z-10 flex flex-col gap-4 pb-safe" data-testid="action-buttons">
+              {/* Action buttons - bottom right with safe area padding */}
+              <div className="absolute right-3 bottom-4 z-10 flex flex-col gap-4 pb-20 md:pb-4" data-testid="action-buttons">
                 <div className="flex flex-col items-center">
                   <Button
                     size="icon"
                     variant="ghost"
-                    className={`h-12 w-12 rounded-full backdrop-blur-sm border-0 transition-all ${
+                    className={`h-12 w-12 rounded-full backdrop-blur-sm border-0 transition-colors duration-200 ${
                       likedVideos[founder.videoId]
                         ? 'bg-red-500/90 text-white hover:bg-red-600'
                         : 'bg-white/20 text-white hover:bg-white/30'
                     }`}
-                    onClick={() => handleLikeToggle(founder.videoId)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleLikeToggle(founder.videoId);
+                    }}
                     data-testid="button-interested"
                   >
                     <Heart 
-                      className={`h-6 w-6 ${likedVideos[founder.videoId] ? 'fill-white' : ''}`} 
+                      className={`h-6 w-6 transition-all duration-200 ${likedVideos[founder.videoId] ? 'fill-white' : ''}`} 
                     />
                   </Button>
                   <span className="text-white text-xs mt-0.5 font-medium">
@@ -688,7 +662,10 @@ export default function VideoFeed({
                   size="icon"
                   variant="ghost"
                   className="h-12 w-12 rounded-full bg-white/20 backdrop-blur-sm text-white border-0"
-                  onClick={() => handleAction("maybe")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAction("maybe");
+                  }}
                   data-testid="button-maybe"
                 >
                   <Bookmark className="h-6 w-6" />
@@ -697,7 +674,10 @@ export default function VideoFeed({
                   size="icon"
                   variant="ghost"
                   className="h-12 w-12 rounded-full bg-white/20 backdrop-blur-sm text-white border-0"
-                  onClick={() => handleAction("pass")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAction("pass");
+                  }}
                   data-testid="button-pass"
                 >
                   <X className="h-6 w-6" />
@@ -706,7 +686,10 @@ export default function VideoFeed({
                   size="icon"
                   variant="ghost"
                   className="h-12 w-12 rounded-full bg-white/20 backdrop-blur-sm text-white border-0"
-                  onClick={() => onInfo?.(founder.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onInfo?.(founder.id);
+                  }}
                   data-testid="button-info"
                 >
                   <Info className="h-6 w-6" />
@@ -715,7 +698,10 @@ export default function VideoFeed({
                   size="icon"
                   variant="ghost"
                   className="h-12 w-12 rounded-full bg-white/20 backdrop-blur-sm text-white/70 border-0 hover:text-white"
-                  onClick={() => onReport?.(founder.id, founder.videoId)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReport?.(founder.id, founder.videoId);
+                  }}
                   data-testid="button-report"
                 >
                   <Flag className="h-5 w-5" />
@@ -728,7 +714,10 @@ export default function VideoFeed({
                   size="icon"
                   variant="ghost"
                   className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm text-white border-0"
-                  onClick={toggleMute}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleMute();
+                  }}
                   data-testid="button-mute"
                 >
                   {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
