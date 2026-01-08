@@ -255,19 +255,10 @@ export default function VideoFeed({
       }, 800);
     };
 
-    const handleScroll = (e: Event) => {
-      if (isTransitioning.current) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
-
     container.addEventListener('wheel', handleWheel, { passive: false });
-    container.addEventListener('scroll', handleScroll, { passive: false });
     
     return () => {
       container.removeEventListener('wheel', handleWheel);
-      container.removeEventListener('scroll', handleScroll);
     };
   }, [currentIndex, founders.length]);
 
@@ -298,8 +289,24 @@ export default function VideoFeed({
     const container = containerRef.current;
     if (!container) return;
 
+    let touchStartTime = 0;
+
     const handleTouchStart = (e: TouchEvent) => {
       touchStartY.current = e.touches[0].clientY;
+      touchStartTime = Date.now();
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      // Prevent pull-to-refresh when scrolling up from first video
+      if (currentIndex === 0) {
+        const currentY = e.touches[0].clientY;
+        const deltaY = currentY - touchStartY.current;
+        
+        // If trying to scroll up (pull down) when at first video, prevent it
+        if (deltaY > 0) {
+          e.preventDefault();
+        }
+      }
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
@@ -307,8 +314,10 @@ export default function VideoFeed({
       
       const touchEndY = e.changedTouches[0].clientY;
       const deltaY = touchStartY.current - touchEndY;
+      const touchDuration = Date.now() - touchStartTime;
       
-      if (Math.abs(deltaY) > 50) {
+      // Only process if it's a deliberate swipe (not just a tap)
+      if (Math.abs(deltaY) > 50 && touchDuration < 500) {
         isTransitioning.current = true;
         
         if (deltaY > 0 && currentIndex < founders.length - 1) {
@@ -326,10 +335,12 @@ export default function VideoFeed({
     };
 
     container.addEventListener('touchstart', handleTouchStart, { passive: true });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
     container.addEventListener('touchend', handleTouchEnd, { passive: true });
     
     return () => {
       container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
       container.removeEventListener('touchend', handleTouchEnd);
     };
   }, [currentIndex, founders.length]);
@@ -596,8 +607,8 @@ export default function VideoFeed({
 
           {index === currentIndex && (
             <>
-              {/* Founder info - bottom left with safe area padding */}
-              <div className="absolute bottom-4 left-4 right-20 z-10 pb-20 md:pb-4" data-testid="founder-info-overlay">
+              {/* Founder info - bottom left with consistent safe area padding */}
+              <div className="absolute bottom-0 left-4 right-20 z-10 pb-[5.5rem] md:pb-4" data-testid="founder-info-overlay">
                 <div className="flex items-start gap-3 mb-2">
                   <Avatar className="h-10 w-10 border-2 border-white/50">
                     <AvatarImage src={founder.avatar} />
@@ -632,8 +643,8 @@ export default function VideoFeed({
                 </div>
               </div>
 
-              {/* Action buttons - bottom right with safe area padding */}
-              <div className="absolute right-3 bottom-4 z-10 flex flex-col gap-4 pb-20 md:pb-4" data-testid="action-buttons">
+              {/* Action buttons - bottom right with consistent safe area padding */}
+              <div className="absolute right-3 bottom-0 z-10 flex flex-col gap-4 pb-[5.5rem] md:pb-4" data-testid="action-buttons">
                 <div className="flex flex-col items-center">
                   <Button
                     size="icon"
