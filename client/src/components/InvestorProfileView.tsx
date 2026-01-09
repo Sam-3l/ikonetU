@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, User, Linkedin, Heart, FileText } from "lucide-react";
+import { Briefcase, User, Linkedin, Heart, FileText, AlertCircle, X, Target, TrendingUp, HandHeart } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface InvestorProfileViewProps {
   profileData: any;
@@ -26,15 +27,86 @@ function InvestorProfileView({
   onSave,
   onCancel
 }: InvestorProfileViewProps) {
+  // Updated sector options (more comprehensive)
   const sectors = ["Fintech", "Healthcare", "AI/ML", "SaaS", "E-commerce", "Climate Tech", "EdTech", "Web3", "Consumer", "Enterprise"];
-  const stages = ["Pre-seed", "Seed", "Series A", "Series B", "Growth"];
+  
+  // Updated stage options (added "Idea" and "Pre-seed")
+  const stages = ["Idea", "Pre-seed", "Seed", "Series A", "Series B", "Growth"];
+  
   const supportOptions = ["Capital Only", "Advisory", "Hands-on", "Board Seat", "Strategic"];
+
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
 
   const toggleArrayItem = (array: string[], item: string) => {
     if (array.includes(item)) {
       return array.filter(i => i !== item);
     }
     return [...array, item];
+  };
+
+  // URL validation helper
+  const validateURL = (url: string): boolean => {
+    if (!url || url.trim() === '') return true; // Empty is valid (optional field)
+    
+    try {
+      // Add https:// if no protocol specified
+      const urlToTest = url.startsWith('http://') || url.startsWith('https://') 
+        ? url 
+        : `https://${url}`;
+      
+      new URL(urlToTest);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // Normalize URL (add https:// if missing)
+  const normalizeURL = (url: string): string => {
+    if (!url || url.trim() === '') return '';
+    
+    const trimmed = url.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    return `https://${trimmed}`;
+  };
+
+  // Handle URL field changes with validation
+  const handleURLChange = (value: string) => {
+    setFormData({ ...formData, linkedin: value });
+    
+    // Clear error when user starts typing
+    if (errors.linkedin) {
+      const newErrors = { ...errors };
+      delete newErrors.linkedin;
+      setErrors(newErrors);
+    }
+  };
+
+  // Validate before saving
+  const handleSaveWithValidation = () => {
+    const newErrors: Record<string, string> = {};
+
+    // Validate linkedin
+    if (formData.linkedin && !validateURL(formData.linkedin)) {
+      newErrors.linkedin = 'Please enter a valid URL (e.g., https://linkedin.com/in/yourname or linkedin.com/in/yourname)';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    // Normalize URL before saving
+    const dataToSave = {
+      ...formData,
+      linkedin: formData.linkedin ? normalizeURL(formData.linkedin) : ''
+    };
+
+    setFormData(dataToSave);
+    setErrors({});
+    onSave();
   };
 
   return (
@@ -104,60 +176,87 @@ function InvestorProfileView({
               </div>
               
               <div className="space-y-2">
-                <Label>Investment Sectors *</Label>
-                <div className="flex flex-wrap gap-2">
+                <Label className="flex items-center gap-2">
+                  <Target className="h-4 w-4" />
+                  Investment Sectors (select all that apply) *
+                </Label>
+                <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/20">
                   {sectors.map(s => (
                     <Badge 
                       key={s} 
                       variant={(formData.sectors || []).includes(s) ? "default" : "outline"} 
-                      className="cursor-pointer" 
+                      className="cursor-pointer hover:bg-primary/80 transition-colors" 
                       onClick={() => setFormData({ 
                         ...formData, 
                         sectors: toggleArrayItem(formData.sectors || [], s) 
                       })}
                     >
                       {s}
+                      {(formData.sectors || []).includes(s) && (
+                        <X className="h-3 w-3 ml-1" />
+                      )}
                     </Badge>
                   ))}
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Selected: {(formData.sectors || []).length > 0 ? (formData.sectors || []).join(", ") : "None"}
+                </p>
               </div>
               
               <div className="space-y-2">
-                <Label>Investment Stages *</Label>
-                <div className="flex flex-wrap gap-2">
+                <Label className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Investment Stages (select all that apply) *
+                </Label>
+                <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/20">
                   {stages.map(s => (
                     <Badge 
                       key={s} 
                       variant={(formData.stages || []).includes(s) ? "default" : "outline"} 
-                      className="cursor-pointer" 
+                      className="cursor-pointer hover:bg-primary/80 transition-colors" 
                       onClick={() => setFormData({ 
                         ...formData, 
                         stages: toggleArrayItem(formData.stages || [], s) 
                       })}
                     >
                       {s}
+                      {(formData.stages || []).includes(s) && (
+                        <X className="h-3 w-3 ml-1" />
+                      )}
                     </Badge>
                   ))}
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Selected: {(formData.stages || []).length > 0 ? (formData.stages || []).join(", ") : "None"}
+                </p>
               </div>
               
               <div className="space-y-2">
-                <Label>Support Types *</Label>
-                <div className="flex flex-wrap gap-2">
+                <Label className="flex items-center gap-2">
+                  <HandHeart className="h-4 w-4" />
+                  Support Types (select all that apply) *
+                </Label>
+                <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/20">
                   {supportOptions.map(s => (
                     <Badge 
                       key={s} 
                       variant={(formData.supportTypes || []).includes(s) ? "default" : "outline"} 
-                      className="cursor-pointer" 
+                      className="cursor-pointer hover:bg-primary/80 transition-colors" 
                       onClick={() => setFormData({ 
                         ...formData, 
                         supportTypes: toggleArrayItem(formData.supportTypes || [], s) 
                       })}
                     >
                       {s}
+                      {(formData.supportTypes || []).includes(s) && (
+                        <X className="h-3 w-3 ml-1" />
+                      )}
                     </Badge>
                   ))}
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Selected: {(formData.supportTypes || []).length > 0 ? (formData.supportTypes || []).join(", ") : "None"}
+                </p>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -172,17 +271,33 @@ function InvestorProfileView({
                 <div className="space-y-2">
                   <Label>LinkedIn</Label>
                   <Input 
-                    type="url" 
                     value={formData.linkedin || ""} 
-                    onChange={(e) => setFormData({ ...formData, linkedin: e.target.value })} 
-                    placeholder="https://linkedin.com/in/yourprofile" 
+                    onChange={(e) => handleURLChange(e.target.value)} 
+                    placeholder="linkedin.com/in/yourname or full URL" 
+                    className={errors.linkedin ? 'border-red-500' : ''}
                   />
+                  {errors.linkedin && (
+                    <p className="text-xs text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {errors.linkedin}
+                    </p>
+                  )}
                 </div>
               </div>
 
+              {/* Error Summary */}
+              {Object.keys(errors).length > 0 && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Please fix the errors above before saving.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div className="flex gap-2 pt-4">
-                <Button onClick={onSave} className="flex-1">Save Changes</Button>
-                <Button onClick={onCancel} variant="outline" className="flex-1">Cancel</Button>
+                <Button onClick={handleSaveWithValidation} className="flex-1">Save Changes</Button>
+                <Button onClick={() => { setErrors({}); onCancel(); }} variant="outline" className="flex-1">Cancel</Button>
               </div>
             </>
           ) : (
@@ -209,8 +324,11 @@ function InvestorProfileView({
                 <p className="text-sm">{profileData?.thesis || "No thesis provided"}</p>
               </div>
               
-              <div className="space-y-1">
-                <div className="text-sm text-muted-foreground">Investment Sectors</div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Target className="h-4 w-4" />
+                  <span>Investment Sectors</span>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {(profileData?.sectors || []).map((s: string) => (
                     <Badge key={s} variant="secondary">{s}</Badge>
@@ -221,8 +339,11 @@ function InvestorProfileView({
                 </div>
               </div>
               
-              <div className="space-y-1">
-                <div className="text-sm text-muted-foreground">Investment Stages</div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <TrendingUp className="h-4 w-4" />
+                  <span>Investment Stages</span>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {(profileData?.stages || []).map((s: string) => (
                     <Badge key={s} variant="secondary">{s}</Badge>
@@ -233,11 +354,14 @@ function InvestorProfileView({
                 </div>
               </div>
               
-              <div className="space-y-1">
-                <div className="text-sm text-muted-foreground">Support Types</div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <HandHeart className="h-4 w-4" />
+                  <span>Support Types</span>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {(profileData?.supportTypes || []).map((s: string) => (
-                    <Badge key={s} variant="secondary">{s}</Badge>
+                    <Badge key={s} variant="outline">{s}</Badge>
                   ))}
                   {(!profileData?.supportTypes || profileData.supportTypes.length === 0) && (
                     <span className="text-sm text-muted-foreground">Not set</span>

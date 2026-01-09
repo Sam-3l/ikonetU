@@ -678,16 +678,25 @@ function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
   const { user, refetch } = useAuth();
   const { toast } = useToast();
   const [step, setStep] = useState(1);
+  
+  // Existing state for investors
   const [sectors, setSectors] = useState<string[]>([]);
   const [stages, setStages] = useState<string[]>([]);
   const [support, setSupport] = useState<string[]>([]);
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  
+  // Existing state for founders
   const [companyName, setCompanyName] = useState("");
   const [location, setLocation] = useState("");
   const [bio, setBio] = useState("");
+  
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const role = user?.role || "founder";
-  const totalSteps = role === "investor" ? 3 : 2;
+  
+  // Updated total steps:
+  // Founders: 4 steps (profile, preferences, support types, video upload)
+  // Investors: 3 steps (preferences, support types, terms)
+  const totalSteps = role === "investor" ? 3 : 4;
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -717,21 +726,47 @@ function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
 
   const handleNext = async () => {
     if (step < totalSteps) {
-      if (step === 1 && role === "founder") {
-        await updateProfileMutation.mutateAsync({ 
-          company_name: companyName,
-          location, 
-          bio 
-        });
-      } else if (step === 1 && role === "investor") {
-        await updateProfileMutation.mutateAsync({ sectors, stages });
-      } else if (step === 2 && role === "investor") {
-        await updateProfileMutation.mutateAsync({ 
-          support_types: support
-        });
+      // FOUNDER FLOW
+      if (role === "founder") {
+        if (step === 1) {
+          // Step 1: Basic profile info
+          await updateProfileMutation.mutateAsync({ 
+            company_name: companyName,
+            location, 
+            bio 
+          });
+        } else if (step === 2) {
+          // Step 2: Sectors and stages preferences
+          await updateProfileMutation.mutateAsync({ 
+            sectors,
+            stages
+          });
+        } else if (step === 3) {
+          // Step 3: Support types
+          await updateProfileMutation.mutateAsync({ 
+            support_types: support
+          });
+        }
+        // Step 4 is video upload - handled by VideoUpload component
       }
+      
+      // INVESTOR FLOW
+      else if (role === "investor") {
+        if (step === 1) {
+          // Step 1: Sectors and stages
+          await updateProfileMutation.mutateAsync({ sectors, stages });
+        } else if (step === 2) {
+          // Step 2: Support types
+          await updateProfileMutation.mutateAsync({ 
+            support_types: support
+          });
+        }
+        // Step 3 is terms for investors
+      }
+      
       setStep(step + 1);
     } else {
+      // Final step
       if (role === "investor") {
         await saveLegalConsentMutation.mutateAsync();
       }
@@ -749,14 +784,20 @@ function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
             ))}
           </div>
           <CardTitle className="text-center">
-            {step === 1 && role === "founder" && "Create Your Profile"}
-            {step === 1 && role === "investor" && "Investment Preferences"}
-            {step === 2 && role === "founder" && "Upload Your Pitch"}
-            {step === 2 && role === "investor" && "Support Preferences"}
-            {step === 3 && role === "investor" && "Terms & Conditions"}
+            {/* FOUNDER TITLES */}
+            {role === "founder" && step === 1 && "Create Your Profile"}
+            {role === "founder" && step === 2 && "Your Preferences"}
+            {role === "founder" && step === 3 && "Support You're Seeking"}
+            {role === "founder" && step === 4 && "Upload Your Pitch"}
+            
+            {/* INVESTOR TITLES */}
+            {role === "investor" && step === 1 && "Investment Preferences"}
+            {role === "investor" && step === 2 && "Support Preferences"}
+            {role === "investor" && step === 3 && "Terms & Conditions"}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* FOUNDER STEP 1: Basic Profile */}
           {step === 1 && role === "founder" && (
             <div className="space-y-4">
               <div className="space-y-2">
@@ -774,36 +815,68 @@ function OnboardingFlow({ onComplete }: { onComplete: () => void }) {
             </div>
           )}
 
-          {step === 1 && role === "investor" && (
+          {/* FOUNDER STEP 2: Sectors & Stages */}
+          {step === 2 && role === "founder" && (
+            <div className="space-y-6">
+              <PreferenceChips
+                label="Industry Sectors"
+                options={["Fintech", "Healthcare", "AI/ML", "SaaS", "E-commerce", "Climate Tech", "EdTech", "Web3", "Consumer", "Enterprise"]}
+                selectedOptions={sectors}
+                onChange={setSectors}
+              />
+              <PreferenceChips
+                label="Funding Stages"
+                options={["Idea", "Pre-seed", "Seed", "Series A", "Series B", "Growth"]}
+                selectedOptions={stages}
+                onChange={setStages}
+              />
+            </div>
+          )}
+
+          {/* FOUNDER STEP 3: Support Types */}
+          {step === 3 && role === "founder" && (
             <PreferenceChips
-              label="Investment Sectors"
-              options={["Fintech", "Healthcare", "AI/ML", "SaaS", "E-commerce", "Climate Tech", "EdTech", "Web3"]}
-              selectedOptions={sectors}
-              onChange={setSectors}
+              label="Support You're Seeking"
+              options={["Capital Only", "Advisory", "Hands-on", "Board Seat", "Strategic"]}
+              selectedOptions={support}
+              onChange={setSupport}
             />
           )}
 
-          {step === 2 && role === "founder" && (
+          {/* FOUNDER STEP 4: Video Upload */}
+          {step === 4 && role === "founder" && (
             <VideoUpload maxDuration={60} onSuccess={() => handleNext()} />
           )}
 
-          {step === 2 && role === "investor" && (
+          {/* INVESTOR STEP 1: Sectors & Stages */}
+          {step === 1 && role === "investor" && (
             <div className="space-y-6">
+              <PreferenceChips
+                label="Investment Sectors"
+                options={["Fintech", "Healthcare", "AI/ML", "SaaS", "E-commerce", "Climate Tech", "EdTech", "Web3", "Consumer", "Enterprise"]}
+                selectedOptions={sectors}
+                onChange={setSectors}
+              />
               <PreferenceChips
                 label="Investment Stage"
                 options={["Pre-seed", "Seed", "Series A", "Series B", "Growth"]}
                 selectedOptions={stages}
                 onChange={setStages}
               />
-              <PreferenceChips
-                label="Support Type"
-                options={["Capital Only", "Advisory", "Hands-on", "Board Seat", "Strategic"]}
-                selectedOptions={support}
-                onChange={setSupport}
-              />
             </div>
           )}
 
+          {/* INVESTOR STEP 2: Support Types */}
+          {step === 2 && role === "investor" && (
+            <PreferenceChips
+              label="Support Type"
+              options={["Capital Only", "Advisory", "Hands-on", "Board Seat", "Strategic"]}
+              selectedOptions={support}
+              onChange={setSupport}
+            />
+          )}
+
+          {/* INVESTOR STEP 3: Terms */}
           {step === 3 && role === "investor" && (
             <LegalAcceptance onAccept={() => setTermsAccepted(true)} isAccepted={termsAccepted} />
           )}

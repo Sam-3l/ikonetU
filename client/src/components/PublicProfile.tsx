@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { ArrowLeft, MapPin, Briefcase, TrendingUp, Heart, Eye, Play, Volume2, VolumeX, Globe, Linkedin, DollarSign, Target, Users, Award } from "lucide-react";
+import { ArrowLeft, MapPin, Briefcase, TrendingUp, Heart, Eye, Play, Volume2, VolumeX, Globe, Linkedin, DollarSign, Target, Users, Award, HandHeart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,13 +29,18 @@ interface PublicProfileProps {
   likeCount?: number;
   isLiked?: boolean;
   
+  // New founder fields (arrays)
+  sectors?: string[];
+  stages?: string[];
+  supportTypes?: string[];
+  
   // Investor specific
   firmName?: string;
   title?: string;
   thesis?: string;
-  sectors?: string[];
-  stages?: string[];
-  supportTypes?: string[];
+  investorSectors?: string[];  // Renamed to avoid conflict
+  investorStages?: string[];   // Renamed to avoid conflict
+  investorSupportTypes?: string[];  // Renamed to avoid conflict
   checkSize?: string;
   investorLinkedin?: string;
   
@@ -64,12 +69,15 @@ export default function PublicProfile({
   viewCount = 0,
   likeCount = 0,
   isLiked = false,
-  firmName,
-  title,
-  thesis,
   sectors = [],
   stages = [],
   supportTypes = [],
+  firmName,
+  title,
+  thesis,
+  investorSectors = [],
+  investorStages = [],
+  investorSupportTypes = [],
   checkSize,
   investorLinkedin,
   onBack,
@@ -265,6 +273,77 @@ export default function PublicProfile({
           </Card>
         )}
 
+        {/* Founder Specific - Focus & Preferences */}
+        {userType === "founder" && (sectors.length > 0 || stages.length > 0 || supportTypes.length > 0) && (
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Business Focus */}
+            {(sectors.length > 0 || stages.length > 0) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Business Focus</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {sectors.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold mb-3 text-sm text-muted-foreground flex items-center gap-2">
+                        <Target className="h-4 w-4" />
+                        Industry Sectors
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {sectors.map((sectorItem, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-sm">
+                            {sectorItem}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {stages.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold mb-3 text-sm text-muted-foreground flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4" />
+                        Funding Stages
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {stages.map((stageItem, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-sm">
+                            {stageItem}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Support Seeking */}
+            {supportTypes.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Support Seeking</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold mb-3 text-sm text-muted-foreground flex items-center gap-2">
+                      <HandHeart className="h-4 w-4" />
+                      Types of Support
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {supportTypes.map((type, idx) => (
+                        <Badge key={idx} variant="outline" className="text-sm">
+                          {type}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
         {/* Founder's Video Section */}
         {userType === "founder" && videoUrl && (
           <Card className="overflow-hidden">
@@ -371,32 +450,32 @@ export default function PublicProfile({
                 <CardTitle className="text-lg">Investment Focus</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {sectors.length > 0 && (
+                {investorSectors.length > 0 && (
                   <div>
                     <h4 className="font-semibold mb-3 text-sm text-muted-foreground flex items-center gap-2">
                       <Target className="h-4 w-4" />
                       Sectors
                     </h4>
                     <div className="flex flex-wrap gap-2">
-                      {sectors.map((sector, idx) => (
+                      {investorSectors.map((sectorItem, idx) => (
                         <Badge key={idx} variant="secondary" className="text-sm">
-                          {sector}
+                          {sectorItem}
                         </Badge>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {stages.length > 0 && (
+                {investorStages.length > 0 && (
                   <div>
                     <h4 className="font-semibold mb-3 text-sm text-muted-foreground flex items-center gap-2">
                       <TrendingUp className="h-4 w-4" />
                       Stages
                     </h4>
                     <div className="flex flex-wrap gap-2">
-                      {stages.map((stage, idx) => (
+                      {investorStages.map((stageItem, idx) => (
                         <Badge key={idx} variant="secondary" className="text-sm">
-                          {stage}
+                          {stageItem}
                         </Badge>
                       ))}
                     </div>
@@ -421,14 +500,14 @@ export default function PublicProfile({
                 <CardTitle className="text-lg">Support & Contact</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {supportTypes.length > 0 && (
+                {investorSupportTypes.length > 0 && (
                   <div>
                     <h4 className="font-semibold mb-3 text-sm text-muted-foreground flex items-center gap-2">
                       <Users className="h-4 w-4" />
                       Support Types
                     </h4>
                     <div className="flex flex-wrap gap-2">
-                      {supportTypes.map((type, idx) => (
+                      {investorSupportTypes.map((type, idx) => (
                         <Badge key={idx} variant="outline" className="text-sm">
                           {type}
                         </Badge>
@@ -449,7 +528,7 @@ export default function PublicProfile({
                   </div>
                 )}
 
-                {!supportTypes.length && !investorLinkedin && (
+                {!investorSupportTypes.length && !investorLinkedin && (
                   <p className="text-sm text-muted-foreground italic">
                     Contact information not provided
                   </p>
@@ -460,7 +539,7 @@ export default function PublicProfile({
         )}
 
         {/* Empty state for investors without data */}
-        {userType === "investor" && !thesis && sectors.length === 0 && stages.length === 0 && (
+        {userType === "investor" && !thesis && investorSectors.length === 0 && investorStages.length === 0 && (
           <Card>
             <CardContent className="p-12 text-center">
               <div className="max-w-md mx-auto space-y-3">

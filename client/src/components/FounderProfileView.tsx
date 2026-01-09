@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Briefcase, MapPin, User, Globe, Linkedin, Eye, Heart, TrendingUp, Play, VolumeX, Volume2 } from "lucide-react";
+import { Briefcase, MapPin, User, Globe, Linkedin, Eye, Heart, TrendingUp, Play, VolumeX, Volume2, Target, Users, HandHeart, X, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface FounderProfileViewProps {
   profileData: any;
@@ -49,12 +50,111 @@ function FounderProfileView({
   onUpdateVideo,
   formatCount
 }: FounderProfileViewProps) {
-  const sectors = ["Fintech", "Healthcare", "AI/ML", "SaaS", "E-commerce", "Climate Tech", "EdTech", "Web3", "Consumer", "Enterprise"];
-  const stages = ["Idea", "MVP", "Early Revenue", "Growth", "Scale"];
+  const sectorOptions = ["Fintech", "Healthcare", "AI/ML", "SaaS", "E-commerce", "Climate Tech", "EdTech", "Web3", "Consumer", "Enterprise"];
+  const stageOptions = ["Idea", "Pre-seed", "Seed", "Series A", "Series B", "Growth"];
+  const supportTypeOptions = ["Capital Only", "Advisory", "Hands-on", "Board Seat", "Strategic"];
   
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
+
   const responseRate = stats?.interestedCount > 0 
     ? Math.round((stats.activeMatches / stats.interestedCount) * 100) 
     : 0;
+
+  // Handlers for multi-select fields
+  const toggleSector = (sector: string) => {
+    const sectors = formData.sectors || [];
+    const newSectors = sectors.includes(sector)
+      ? sectors.filter((s: string) => s !== sector)
+      : [...sectors, sector];
+    setFormData({ ...formData, sectors: newSectors });
+  };
+
+  const toggleStage = (stage: string) => {
+    const stages = formData.stages || [];
+    const newStages = stages.includes(stage)
+      ? stages.filter((s: string) => s !== stage)
+      : [...stages, stage];
+    setFormData({ ...formData, stages: newStages });
+  };
+
+  const toggleSupportType = (supportType: string) => {
+    const supportTypes = formData.supportTypes || [];
+    const newSupportTypes = supportTypes.includes(supportType)
+      ? supportTypes.filter((s: string) => s !== supportType)
+      : [...supportTypes, supportType];
+    setFormData({ ...formData, supportTypes: newSupportTypes });
+  };
+
+  // URL validation helper
+  const validateURL = (url: string): boolean => {
+    if (!url || url.trim() === '') return true; // Empty is valid (optional field)
+    
+    try {
+      // Add https:// if no protocol specified
+      const urlToTest = url.startsWith('http://') || url.startsWith('https://') 
+        ? url 
+        : `https://${url}`;
+      
+      new URL(urlToTest);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // Normalize URL (add https:// if missing)
+  const normalizeURL = (url: string): string => {
+    if (!url || url.trim() === '') return '';
+    
+    const trimmed = url.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    return `https://${trimmed}`;
+  };
+
+  // Handle URL field changes with validation
+  const handleURLChange = (field: 'website' | 'linkedin', value: string) => {
+    setFormData({ ...formData, [field]: value });
+    
+    // Clear error when user starts typing
+    if (errors[field]) {
+      const newErrors = { ...errors };
+      delete newErrors[field];
+      setErrors(newErrors);
+    }
+  };
+
+  // Validate before saving
+  const handleSaveWithValidation = () => {
+    const newErrors: Record<string, string> = {};
+
+    // Validate website
+    if (formData.website && !validateURL(formData.website)) {
+      newErrors.website = 'Please enter a valid URL (e.g., https://example.com or example.com)';
+    }
+
+    // Validate linkedin
+    if (formData.linkedin && !validateURL(formData.linkedin)) {
+      newErrors.linkedin = 'Please enter a valid URL (e.g., https://linkedin.com/in/yourname)';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    // Normalize URLs before saving
+    const dataToSave = {
+      ...formData,
+      website: formData.website ? normalizeURL(formData.website) : '',
+      linkedin: formData.linkedin ? normalizeURL(formData.linkedin) : ''
+    };
+
+    setFormData(dataToSave);
+    setErrors({});
+    onSave();
+  };
 
   return (
     <>
@@ -120,7 +220,7 @@ function FounderProfileView({
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Industry Sector *</Label>
+                  <Label>Primary Sector *</Label>
                   <Select 
                     value={formData.sector || ""} 
                     onValueChange={(value) => setFormData({ ...formData, sector: value })}
@@ -129,14 +229,14 @@ function FounderProfileView({
                       <SelectValue placeholder="Select sector" />
                     </SelectTrigger>
                     <SelectContent>
-                      {sectors.map(s => (
+                      {sectorOptions.map(s => (
                         <SelectItem key={s} value={s}>{s}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Startup Stage *</Label>
+                  <Label>Current Stage *</Label>
                   <Select 
                     value={formData.stage || ""} 
                     onValueChange={(value) => setFormData({ ...formData, stage: value })}
@@ -145,12 +245,90 @@ function FounderProfileView({
                       <SelectValue placeholder="Select stage" />
                     </SelectTrigger>
                     <SelectContent>
-                      {stages.map(s => (
+                      {stageOptions.map(s => (
                         <SelectItem key={s} value={s}>{s}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              {/* Multiple Sectors Selection */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Target className="h-4 w-4" />
+                  Industry Sectors (select all that apply)
+                </Label>
+                <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/20">
+                  {sectorOptions.map((sector) => (
+                    <Badge
+                      key={sector}
+                      variant={(formData.sectors || []).includes(sector) ? "default" : "outline"}
+                      className="cursor-pointer hover:bg-primary/80 transition-colors"
+                      onClick={() => toggleSector(sector)}
+                    >
+                      {sector}
+                      {(formData.sectors || []).includes(sector) && (
+                        <X className="h-3 w-3 ml-1" />
+                      )}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Selected: {(formData.sectors || []).length > 0 ? (formData.sectors || []).join(", ") : "None"}
+                </p>
+              </div>
+
+              {/* Multiple Stages Selection */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Funding Stages Interested In
+                </Label>
+                <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/20">
+                  {stageOptions.map((stage) => (
+                    <Badge
+                      key={stage}
+                      variant={(formData.stages || []).includes(stage) ? "default" : "outline"}
+                      className="cursor-pointer hover:bg-primary/80 transition-colors"
+                      onClick={() => toggleStage(stage)}
+                    >
+                      {stage}
+                      {(formData.stages || []).includes(stage) && (
+                        <X className="h-3 w-3 ml-1" />
+                      )}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Selected: {(formData.stages || []).length > 0 ? (formData.stages || []).join(", ") : "None"}
+                </p>
+              </div>
+
+              {/* Support Types Selection */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <HandHeart className="h-4 w-4" />
+                  Type of Support Seeking
+                </Label>
+                <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/20">
+                  {supportTypeOptions.map((type) => (
+                    <Badge
+                      key={type}
+                      variant={(formData.supportTypes || []).includes(type) ? "default" : "outline"}
+                      className="cursor-pointer hover:bg-primary/80 transition-colors"
+                      onClick={() => toggleSupportType(type)}
+                    >
+                      {type}
+                      {(formData.supportTypes || []).includes(type) && (
+                        <X className="h-3 w-3 ml-1" />
+                      )}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Selected: {(formData.supportTypes || []).length > 0 ? (formData.supportTypes || []).join(", ") : "None"}
+                </p>
               </div>
               
               <div className="space-y-2">
@@ -179,27 +357,49 @@ function FounderProfileView({
                 <div className="space-y-2">
                   <Label>Website</Label>
                   <Input 
-                    type="url" 
                     value={formData.website || ""} 
-                    onChange={(e) => setFormData({ ...formData, website: e.target.value })} 
-                    placeholder="https://yourcompany.com" 
+                    onChange={(e) => handleURLChange('website', e.target.value)} 
+                    placeholder="example.com or https://example.com" 
+                    className={errors.website ? 'border-red-500' : ''}
                   />
+                  {errors.website && (
+                    <p className="text-xs text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {errors.website}
+                    </p>
+                  )}
                 </div>
               </div>
               
               <div className="space-y-2">
                 <Label>LinkedIn Profile</Label>
                 <Input 
-                  type="url" 
                   value={formData.linkedin || ""} 
-                  onChange={(e) => setFormData({ ...formData, linkedin: e.target.value })} 
-                  placeholder="https://linkedin.com/in/yourprofile" 
+                  onChange={(e) => handleURLChange('linkedin', e.target.value)} 
+                  placeholder="linkedin.com/in/yourname or full URL" 
+                  className={errors.linkedin ? 'border-red-500' : ''}
                 />
+                {errors.linkedin && (
+                  <p className="text-xs text-red-500 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {errors.linkedin}
+                  </p>
+                )}
               </div>
 
+              {/* Error Summary */}
+              {Object.keys(errors).length > 0 && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Please fix the errors above before saving.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div className="flex gap-2 pt-4">
-                <Button onClick={onSave} className="flex-1">Save Changes</Button>
-                <Button onClick={onCancel} variant="outline" className="flex-1">Cancel</Button>
+                <Button onClick={handleSaveWithValidation} className="flex-1">Save Changes</Button>
+                <Button onClick={() => { setErrors({}); onCancel(); }} variant="outline" className="flex-1">Cancel</Button>
               </div>
             </>
           ) : (
@@ -223,14 +423,59 @@ function FounderProfileView({
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Sector</div>
+                  <div className="text-sm text-muted-foreground">Primary Sector</div>
                   <Badge variant="secondary">{profileData?.sector || "Not set"}</Badge>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Stage</div>
+                  <div className="text-sm text-muted-foreground">Current Stage</div>
                   <Badge variant="secondary">{profileData?.stage || "Not set"}</Badge>
                 </div>
               </div>
+
+              {/* Display Multiple Sectors */}
+              {profileData?.sectors && profileData.sectors.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Target className="h-4 w-4" />
+                    <span>Industry Sectors</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {profileData.sectors.map((sector: string, idx: number) => (
+                      <Badge key={idx} variant="secondary">{sector}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Display Multiple Stages */}
+              {profileData?.stages && profileData.stages.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <TrendingUp className="h-4 w-4" />
+                    <span>Funding Stages Interested In</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {profileData.stages.map((stage: string, idx: number) => (
+                      <Badge key={idx} variant="secondary">{stage}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Display Support Types */}
+              {profileData?.supportTypes && profileData.supportTypes.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <HandHeart className="h-4 w-4" />
+                    <span>Support Types Seeking</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {profileData.supportTypes.map((type: string, idx: number) => (
+                      <Badge key={idx} variant="outline">{type}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
               
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
