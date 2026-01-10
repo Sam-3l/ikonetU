@@ -160,31 +160,31 @@ function FounderProfileView({
     <>
       {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-3 md:gap-4">
-        <Card>
+      <Card className="bg-gradient-to-br from-blue-50 via-cyan-50/50 to-blue-50/30 dark:from-blue-950/30 dark:via-cyan-950/20 dark:to-blue-950/10 border-blue-500/20">
           <CardContent className="p-4 md:p-6">
             <div className="flex flex-col items-center text-center">
-              <Eye className="h-5 w-5 md:h-6 md:w-6 mb-2 text-primary" />
-              <div className="text-xl md:text-2xl font-bold">{formatCount(stats?.totalViews || 0)}</div>
+              <Eye className="h-5 w-5 md:h-6 md:w-6 mb-2 text-blue-600 dark:text-blue-400" />
+              <div className="text-xl md:text-2xl font-bold bg-gradient-to-br from-blue-600 to-cyan-600 bg-clip-text text-transparent">{formatCount(stats?.totalViews || 0)}</div>
               <div className="text-xs md:text-sm text-muted-foreground">Views</div>
             </div>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="bg-gradient-to-br from-rose-50 via-pink-50/50 to-rose-50/30 dark:from-rose-950/30 dark:via-pink-950/20 dark:to-rose-950/10 border-rose-500/20">
           <CardContent className="p-4 md:p-6">
             <div className="flex flex-col items-center text-center">
-              <Heart className="h-5 w-5 md:h-6 md:w-6 mb-2 text-primary" />
-              <div className="text-xl md:text-2xl font-bold">{stats?.activeMatches || 0}</div>
+              <Heart className="h-5 w-5 md:h-6 md:w-6 mb-2 text-rose-600 dark:text-rose-400" />
+              <div className="text-xl md:text-2xl font-bold bg-gradient-to-br from-rose-600 to-pink-600 bg-clip-text text-transparent">{stats?.activeMatches || 0}</div>
               <div className="text-xs md:text-sm text-muted-foreground">Matches</div>
             </div>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="bg-gradient-to-br from-emerald-50 via-green-50/50 to-emerald-50/30 dark:from-emerald-950/30 dark:via-green-950/20 dark:to-emerald-950/10 border-emerald-500/20">
           <CardContent className="p-4 md:p-6">
             <div className="flex flex-col items-center text-center">
-              <TrendingUp className="h-5 w-5 md:h-6 md:w-6 mb-2 text-primary" />
-              <div className="text-xl md:text-2xl font-bold">{responseRate}%</div>
+              <TrendingUp className="h-5 w-5 md:h-6 md:w-6 mb-2 text-emerald-600 dark:text-emerald-400" />
+              <div className="text-xl md:text-2xl font-bold bg-gradient-to-br from-emerald-600 to-green-600 bg-clip-text text-transparent">{responseRate}%</div>
               <div className="text-xs md:text-sm text-muted-foreground">Response</div>
             </div>
           </CardContent>
@@ -192,7 +192,7 @@ function FounderProfileView({
       </div>
 
       {/* Profile Information */}
-      <Card>
+      <Card className="bg-gradient-to-br from-violet-50/30 via-purple-50/20 to-fuchsia-50/30 dark:from-violet-950/10 dark:via-purple-950/5 dark:to-fuchsia-950/10 border-purple-500/10">
         <CardHeader>
           <CardTitle>Profile Information</CardTitle>
         </CardHeader>
@@ -259,7 +259,7 @@ function FounderProfileView({
                   <Target className="h-4 w-4" />
                   Industry Sectors (select all that apply)
                 </Label>
-                <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/20">
+                <div className="flex flex-wrap gap-2 p-3 border border-purple-500/20 rounded-lg bg-gradient-to-br from-purple-50/50 to-fuchsia-50/30 dark:from-purple-950/20 dark:to-fuchsia-950/10">
                   {sectorOptions.map((sector) => (
                     <Badge
                       key={sector}
@@ -285,7 +285,7 @@ function FounderProfileView({
                   <TrendingUp className="h-4 w-4" />
                   Funding Stages Interested In
                 </Label>
-                <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/20">
+                <div className="flex flex-wrap gap-2 p-3 border border-purple-500/20 rounded-lg bg-gradient-to-br from-purple-50/50 to-fuchsia-50/30 dark:from-purple-950/20 dark:to-fuchsia-950/10">
                   {stageOptions.map((stage) => (
                     <Badge
                       key={stage}
@@ -311,7 +311,7 @@ function FounderProfileView({
                   <HandHeart className="h-4 w-4" />
                   Type of Support Seeking
                 </Label>
-                <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/20">
+                <div className="flex flex-wrap gap-2 p-3 border border-purple-500/20 rounded-lg bg-gradient-to-br from-purple-50/50 to-fuchsia-50/30 dark:from-purple-950/20 dark:to-fuchsia-950/10">
                   {supportTypeOptions.map((type) => (
                     <Badge
                       key={type}
@@ -398,7 +398,7 @@ function FounderProfileView({
               )}
 
               <div className="flex gap-2 pt-4">
-                <Button onClick={handleSaveWithValidation} className="flex-1">Save Changes</Button>
+                <Button onClick={handleSaveWithValidation} className="flex-1 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-700 hover:via-purple-700 hover:to-fuchsia-700 text-white border-0 shadow-lg shadow-purple-500/30">Save Changes</Button>
                 <Button onClick={() => { setErrors({}); onCancel(); }} variant="outline" className="flex-1">Cancel</Button>
               </div>
             </>
@@ -523,8 +523,9 @@ function FounderProfileView({
 
       {/* Current Video Section */}
       {currentVideoData && (
-        <Card>
+        <Card className="overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-950 dark:to-slate-900/50 border-slate-500/20 shadow-xl shadow-slate-500/10">
           <CardContent className="p-0">
+            <div className="absolute inset-0 bg-gradient-to-b from-purple-500/5 via-transparent to-purple-500/10 pointer-events-none z-10" />
             <div className="relative aspect-video bg-black rounded-t-lg overflow-hidden">
               <video 
                 ref={videoRef}

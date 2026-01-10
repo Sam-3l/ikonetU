@@ -269,18 +269,12 @@ function ProfilePage() {
 
   return (
     <div className="p-4 md:p-8 pb-20 md:pb-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold">Your Profile</h1>
-        {isFounder && (
-          <Button variant="outline" onClick={() => setLocation("/videos")}>
-            View All Videos
-          </Button>
-        )}
-      </div>
+      
+      {/* Content wrapper */}
+      <div className="relative z-10 p-4 md:p-8 pb-20 md:pb-8 space-y-6">
 
       {/* Profile Completeness */}
-      <Card>
+      <Card className="bg-gradient-to-br from-violet-50/50 via-purple-50/30 to-fuchsia-50/50 dark:from-violet-950/20 dark:via-purple-950/10 dark:to-fuchsia-950/20 border-purple-500/20">
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">Profile Completeness</span>
@@ -298,7 +292,7 @@ function ProfilePage() {
       </Card>
 
       {/* Profile Header */}
-      <Card>
+      <Card className="bg-gradient-to-br from-background via-purple-50/20 to-background dark:via-purple-950/10 border-purple-500/10 shadow-lg shadow-purple-500/5">
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row items-start gap-6">
             <div className="relative mx-auto sm:mx-0">
@@ -338,7 +332,7 @@ function ProfilePage() {
                   </p>
                 </div>
                 {!isEditing ? (
-                  <Button onClick={() => setIsEditing(true)} variant="outline">
+                  <Button onClick={() => setIsEditing(true)} variant="outline" className="border-purple-500/30 hover:bg-gradient-to-r hover:from-violet-500 hover:to-fuchsia-500 hover:text-white hover:border-transparent transition-all">
                     <Edit2 className="h-4 w-4 mr-2" />
                     Edit
                   </Button>
@@ -385,7 +379,7 @@ function ProfilePage() {
 
       {/* No video CTA for founders */}
       {isFounder && !currentVideoData && !showVideoUpload && (
-        <Card>
+        <Card className="bg-gradient-to-br from-violet-500/10 via-purple-500/10 to-fuchsia-500/10 border-purple-500/20">
           <CardContent className="p-8 text-center">
             <p className="text-muted-foreground mb-4">
               You haven't uploaded a pitch video yet
@@ -404,6 +398,7 @@ function ProfilePage() {
         imageUrl={tempImageUrl}
         onSave={handleImageSave}
       />
+      </div>
     </div>
   );
 }

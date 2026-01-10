@@ -111,6 +111,8 @@ export default function ChatList({ chats, selectedChatId, onSelectChat, currentU
 
   return (
     <ScrollArea className="h-full">
+      <div className="bg-gradient-to-b from-violet-50/20 via-transparent to-fuchsia-50/20 dark:from-violet-950/10 dark:via-transparent dark:to-fuchsia-950/10">
+      <div className="divide-y divide-border">
       <div className="divide-y divide-border">
         {chats.map((chat) => {
           const hasUnread = chat.unreadCount && chat.unreadCount > 0;
@@ -119,8 +121,10 @@ export default function ChatList({ chats, selectedChatId, onSelectChat, currentU
             <button
               key={chat.id}
               onClick={() => onSelectChat(chat.id)}
-              className={`w-full flex items-center gap-3 p-4 text-left transition-colors hover-elevate ${
-                selectedChatId === chat.id ? "bg-accent" : ""
+              className={`w-full flex items-center gap-3 p-4 text-left transition-all ${
+                selectedChatId === chat.id 
+                  ? "bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-fuchsia-500/10 border-l-4 border-purple-500 shadow-lg shadow-purple-500/10" 
+                  : "hover:bg-gradient-to-r hover:from-violet-50 hover:to-fuchsia-50 dark:hover:from-violet-950/30 dark:hover:to-fuchsia-950/30"
               }`}
             >
               <div className="relative shrink-0">
@@ -163,6 +167,8 @@ export default function ChatList({ chats, selectedChatId, onSelectChat, currentU
             </button>
           );
         })}
+      </div>
+      </div>
       </div>
     </ScrollArea>
   );

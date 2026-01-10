@@ -55,12 +55,12 @@ export default function Header({
 
   return (
     <header
-      className="sticky top-0 z-50 h-16 border-b border-border bg-background/80 backdrop-blur-md"
+      className="sticky top-0 z-50 h-16 border-b border-border/50 bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-fuchsia-500/10 backdrop-blur-xl shadow-lg shadow-purple-500/5"
       data-testid="header"
     >
       <div className="flex h-full items-center justify-between gap-4 px-4 md:px-8">
         <div className="flex items-center gap-2">
-          <span className="font-display text-xl font-bold text-foreground" data-testid="logo">
+          <span className="font-display text-xl font-bold bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 bg-clip-text text-transparent" data-testid="logo">
             ikonet<span className="text-primary">U</span>
           </span>
         </div>

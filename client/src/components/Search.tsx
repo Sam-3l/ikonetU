@@ -168,17 +168,27 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
     ];
 
     return (
-      <div className="fixed inset-0 z-50 bg-background">
+      <div className="fixed inset-0 z-50">
+        {/* Background for video player */}
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-violet-50/30 to-purple-50/40 dark:from-slate-950 dark:via-violet-950/30 dark:to-purple-950/40">
+          <div className="absolute inset-0 opacity-[0.015] dark:opacity-[0.02]" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+            backgroundRepeat: 'repeat',
+            backgroundSize: '128px 128px'
+          }} />
+        </div>
+        
         <div className="absolute top-4 left-4 z-50">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setShowVideoPlayer(false)}
-            className="rounded-full bg-black/50 text-white hover:bg-black/70"
+            className="rounded-full bg-white/40 dark:bg-slate-950/40 backdrop-blur-md hover:bg-white/60 dark:hover:bg-slate-900/60 shadow-lg"
           >
             <X className="h-5 w-5" />
           </Button>
         </div>
+        <div className="relative z-10">
         <VideoFeed
           founders={reorderedVideos}
           onInterested={(founderId) => {
@@ -200,6 +210,7 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
           onLike={handleLike}
           onView={handleView}
         />
+        </div>
       </div>
     );
   }
@@ -209,9 +220,25 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
   const suggestions = autocompleteData?.suggestions || [];
 
   return (
-    <div className="h-full flex flex-col bg-background">
-      {/* Search Header - REMOVED SEARCH BUTTON */}
-      <div className="sticky top-0 z-10 bg-background border-b p-4">
+    <div className="h-full flex flex-col relative">
+      {/* Modal Background Layer */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-violet-50/30 to-purple-50/40 dark:from-slate-950 dark:via-violet-950/30 dark:to-purple-950/40">
+        {/* Noise texture */}
+        <div className="absolute inset-0 opacity-[0.015] dark:opacity-[0.02]" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'repeat',
+          backgroundSize: '128px 128px'
+        }} />
+        
+        {/* Gradient orbs */}
+        <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-gradient-radial from-violet-400/10 to-transparent dark:from-violet-600/8 dark:to-transparent rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-0 w-[450px] h-[450px] bg-gradient-radial from-purple-400/8 to-transparent dark:from-purple-600/6 dark:to-transparent rounded-full blur-3xl" />
+      </div>
+      
+      {/* Content */}
+      <div className="relative z-10 h-full flex flex-col">
+      {/* Search Header with Blur */}
+      <div className="sticky top-0 z-10 bg-white/40 dark:bg-slate-950/40 backdrop-blur-xl border-b p-4">
         <div className="flex items-center gap-3 max-w-2xl mx-auto">
           <div className="flex-1 min-w-0">
             <div className="relative w-full">
@@ -233,7 +260,7 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
                   if (e.key === 'Enter') handleSearch();
                 }}
                 style={{ paddingLeft: '2.5rem', paddingRight: '2.5rem' }}
-                className="w-full"
+                className="w-full bg-muted/50"
               />
               {searchInput && (
                 <div className="absolute right-1 top-1/2 -translate-y-1/2">
@@ -256,7 +283,7 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
 
         {submittedQuery && (
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="max-w-2xl mx-auto mt-4">
-            <TabsList className="w-full">
+            <TabsList className="w-full bg-muted/50">
               <TabsTrigger value="all" className="flex-1">
                 All ({(results?.videos?.length || 0) + (results?.profiles?.length || 0)})
               </TabsTrigger>
@@ -285,7 +312,7 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
               suggestions.map((suggestion, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center gap-3 p-3 hover:bg-muted rounded-lg cursor-pointer transition-colors"
+                  className="flex items-center gap-3 p-3 hover:bg-muted/50 rounded-lg cursor-pointer transition-colors"
                   onClick={() => handleSelectSuggestion(suggestion)}
                 >
                   <SearchIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
@@ -319,7 +346,7 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
                   {searchHistory.map((term, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center gap-3 p-3 hover:bg-muted rounded-lg cursor-pointer group transition-colors"
+                      className="flex items-center gap-3 p-3 hover:bg-muted/50 rounded-lg cursor-pointer group transition-colors"
                       onClick={() => handleSelectSuggestion(term)}
                     >
                       <Clock className="h-5 w-5 text-muted-foreground flex-shrink-0" />
@@ -349,7 +376,7 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
                   <Badge
                     key={suggestion}
                     variant="secondary"
-                    className="cursor-pointer hover:bg-secondary/80 px-3 py-2"
+                    className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-all px-3 py-2"
                     onClick={() => handleSelectSuggestion(suggestion)}
                   >
                     {suggestion}
@@ -381,10 +408,10 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
                     {results.videos.map((video, index) => (
                       <Card
                         key={video.id}
-                        className="cursor-pointer hover-elevate overflow-hidden"
+                        className="cursor-pointer hover-elevate overflow-hidden border border-slate-200/50 dark:border-slate-800/50 hover:border-primary/50 transition-all hover:shadow-lg hover:shadow-primary/10 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm"
                         onClick={() => handleVideoClick(index)}
                       >
-                        <div className="relative aspect-[9/16] bg-black group">
+                        <div className="relative aspect-[9/16] bg-muted group">
                           {index === 0 ? (
                             <video
                               src={video.url}
@@ -409,8 +436,8 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
                           
                           {index !== 0 && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <div className="w-12 h-12 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center">
-                                <Play className="w-6 h-6 text-white ml-1" />
+                              <div className="w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center">
+                                <Play className="w-6 h-6 text-foreground ml-1" />
                               </div>
                             </div>
                           )}
@@ -445,7 +472,7 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
                     {results.profiles.map((profile) => (
                       <Card
                         key={profile.id}
-                        className="cursor-pointer hover-elevate"
+                        className="cursor-pointer hover-elevate hover:border-primary/50 transition-all bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm border-slate-200/50 dark:border-slate-800/50"
                         onClick={() => onSelectProfile?.(profile.id)}
                       >
                         <CardContent className="p-4">
@@ -490,10 +517,10 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
                   {results.videos.map((video, index) => (
                     <Card
                       key={video.id}
-                      className="cursor-pointer hover-elevate overflow-hidden"
+                      className="cursor-pointer hover-elevate overflow-hidden border border-slate-200/50 dark:border-slate-800/50 hover:border-primary/50 transition-all hover:shadow-lg hover:shadow-primary/10 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm"
                       onClick={() => handleVideoClick(index)}
                     >
-                      <div className="relative aspect-[9/16] bg-muted">
+                      <div className="relative aspect-[9/16] bg-muted group">
                         {video.thumbnailUrl ? (
                           <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover" />
                         ) : (
@@ -501,10 +528,27 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
                             <Video className="h-8 w-8 text-muted-foreground" />
                           </div>
                         )}
-                        <div className="absolute bottom-2 left-2 right-2">
-                          <p className="text-white text-xs font-medium line-clamp-2 drop-shadow-lg">
+                        
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center">
+                            <Play className="w-6 h-6 text-foreground ml-1" />
+                          </div>
+                        </div>
+                        
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                          <p className="text-white text-xs font-medium line-clamp-2">
                             {video.title || video.founder?.profile?.companyName}
                           </p>
+                          <div className="flex items-center gap-2 mt-1 text-white/80 text-xs">
+                            <span className="flex items-center gap-1">
+                              <Eye className="h-3 w-3" />
+                              {formatCount(video.viewCount || 0)}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Heart className="h-3 w-3" />
+                              {formatCount(video.likeCount || 0)}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </Card>
@@ -524,7 +568,7 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
                   {results.profiles.map((profile) => (
                     <Card
                       key={profile.id}
-                      className="cursor-pointer hover-elevate"
+                      className="cursor-pointer hover-elevate hover:border-primary/50 transition-all bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm border-slate-200/50 dark:border-slate-800/50"
                       onClick={() => onSelectProfile?.(profile.id)}
                     >
                       <CardContent className="p-4">
@@ -554,6 +598,7 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
             </TabsContent>
           </Tabs>
         )}
+      </div>
       </div>
     </div>
   );

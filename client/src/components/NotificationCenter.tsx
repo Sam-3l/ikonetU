@@ -130,9 +130,32 @@ export default function NotificationCenter({ onClose, onNavigate }: Notification
   const unreadCount = notifications?.filter(n => !n.is_read).length || 0;
 
   return (
-    <div className="fixed inset-0 bg-background z-50 flex flex-col">
-      {/* Header */}
-      <div className="border-b p-4 space-y-3">
+    <div className="fixed inset-0 z-50 flex flex-col">
+      {/* Solid Modal Background matching app theme */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-violet-50 to-purple-50 dark:from-slate-950 dark:via-violet-950 dark:to-purple-950">
+        {/* Noise texture */}
+        <div className="absolute inset-0 opacity-[0.04] dark:opacity-[0.05]" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'repeat',
+          backgroundSize: '128px 128px'
+        }} />
+        
+        {/* Gradient orbs matching main app */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-radial from-violet-400/20 via-violet-300/12 to-transparent dark:from-violet-600/18 dark:via-violet-700/10 dark:to-transparent rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-[450px] h-[450px] bg-gradient-radial from-purple-400/18 via-purple-300/10 to-transparent dark:from-purple-600/16 dark:via-purple-700/8 dark:to-transparent rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-gradient-radial from-fuchsia-400/16 via-fuchsia-300/9 to-transparent dark:from-fuchsia-600/14 dark:via-fuchsia-700/7 dark:to-transparent rounded-full blur-3xl" />
+        
+        {/* Grid pattern */}
+        <div className="absolute inset-0 opacity-[0.06] dark:opacity-[0.04]" style={{
+          backgroundImage: `linear-gradient(rgba(139, 92, 246, 0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(139, 92, 246, 0.15) 1px, transparent 1px)`,
+          backgroundSize: '64px 64px'
+        }} />
+      </div>
+      
+      {/* Content */}
+      <div className="relative z-10 flex flex-col h-full">
+      {/* Header with blur */}
+      <div className="bg-white/50 dark:bg-slate-950/50 backdrop-blur-xl border-b border-purple-200/30 dark:border-purple-800/30 p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Bell className="h-5 w-5" />
@@ -179,7 +202,7 @@ export default function NotificationCenter({ onClose, onNavigate }: Notification
         {isLoading ? (
           <div className="p-4 space-y-3">
             {[1, 2, 3].map(i => (
-              <Card key={i}>
+              <Card key={i} className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-purple-200/40 dark:border-purple-800/40">
                 <CardContent className="p-4">
                   <div className="flex gap-3">
                     <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
@@ -197,8 +220,8 @@ export default function NotificationCenter({ onClose, onNavigate }: Notification
             {notifications.map((notification) => (
               <Card
                 key={notification.id}
-                className={`cursor-pointer hover-elevate transition-all group ${
-                  !notification.is_read ? 'bg-primary/5 border-primary/20' : ''
+                className={`cursor-pointer hover-elevate transition-all group bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-purple-200/40 dark:border-purple-800/40 ${
+                  !notification.is_read ? 'border-primary/60 shadow-lg shadow-primary/20 bg-primary/5 dark:bg-primary/10 ring-2 ring-primary/20' : ''
                 }`}
                 onClick={() => handleNotificationClick(notification)}
               >
@@ -250,7 +273,7 @@ export default function NotificationCenter({ onClose, onNavigate }: Notification
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+            <div className="w-16 h-16 rounded-full bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm flex items-center justify-center mb-4 border-2 border-purple-200/50 dark:border-purple-800/50">
               <Bell className="h-8 w-8 text-muted-foreground" />
             </div>
             <p className="text-lg font-medium mb-2">No notifications</p>
@@ -260,6 +283,7 @@ export default function NotificationCenter({ onClose, onNavigate }: Notification
           </div>
         )}
       </ScrollArea>
+      </div>
     </div>
   );
 }

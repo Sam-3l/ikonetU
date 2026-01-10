@@ -514,7 +514,7 @@ export default function VideoFeed({
           style={{ backgroundColor: getBackgroundColor() }}
         >
           <div
-            className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80 pointer-events-none"
+            className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent via-40% to-black/95 pointer-events-none"
             style={{ zIndex: 1 }}
           />
 
@@ -608,7 +608,7 @@ export default function VideoFeed({
           {index === currentIndex && (
             <>
               {/* Founder info - bottom left with consistent safe area padding */}
-              <div className="absolute bottom-0 left-4 right-20 z-10 pb-[5.5rem] md:pb-4" data-testid="founder-info-overlay">
+              <div className="absolute bottom-0 left-4 right-20 z-10 pb-[5.5rem] md:pb-4 bg-gradient-to-t from-black/60 via-black/20 to-transparent pt-6 -mx-4 px-4" data-testid="founder-info-overlay">
                 <div className="flex items-start gap-3 mb-2">
                   <Avatar className="h-10 w-10 border-2 border-white/50">
                     <AvatarImage src={founder.avatar} />

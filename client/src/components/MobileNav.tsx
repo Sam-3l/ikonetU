@@ -16,7 +16,7 @@ export default function MobileNav({ activeTab = "discover", onTabChange }: Mobil
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 h-16 border-t border-border bg-background/95 backdrop-blur-md md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 h-16 border-t border-border/50 bg-gradient-to-t from-background via-purple-50/30 to-background/95 dark:via-purple-950/20 backdrop-blur-xl shadow-[0_-4px_20px_rgba(168,85,247,0.15)] md:hidden"
       data-testid="nav-mobile"
     >
       <div className="flex h-full items-center justify-around px-2">
@@ -27,10 +27,10 @@ export default function MobileNav({ activeTab = "discover", onTabChange }: Mobil
             <button
               key={item.id}
               onClick={() => onTabChange?.(item.id)}
-              className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg transition-colors ${
+              className={`flex flex-col items-center justify-center gap-1 p-2 rounded-xl transition-all duration-300 ${
                 isActive
-                  ? "text-primary"
-                  : "text-muted-foreground"
+                  ? "text-primary bg-gradient-to-br from-violet-500/20 via-purple-500/20 to-fuchsia-500/20 shadow-lg shadow-purple-500/30 scale-105"
+                  : "text-muted-foreground hover:text-primary hover:bg-purple-500/5"
               }`}
               data-testid={`nav-mobile-${item.id}`}
             >

@@ -369,7 +369,7 @@ function MatchesPage() {
   
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {pendingMatches.map((match) => (
-              <Card key={match.id} className="overflow-visible h-full">
+              <Card key={match.id} className="overflow-visible h-full bg-gradient-to-br from-amber-50/50 via-orange-50/30 to-amber-50/50 dark:from-amber-950/20 dark:via-orange-950/10 dark:to-amber-950/20 border-amber-500/20 hover:shadow-lg hover:shadow-amber-500/20 transition-all">
                 <CardContent className="p-4 flex flex-col h-full">
                   <div
                     className="flex items-center gap-3 mb-4 cursor-pointer"
@@ -404,7 +404,7 @@ function MatchesPage() {
                       </p>
                       <div className="mt-auto flex gap-2">
                         <Button
-                          className="flex-1"
+                          className="flex-1 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white border-0 shadow-md shadow-emerald-500/30"
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -416,7 +416,7 @@ function MatchesPage() {
                         </Button>
                         <Button
                           variant="outline"
-                          className="flex-1"
+                          className="flex-1 border-rose-500/30 hover:bg-rose-500 hover:text-white hover:border-transparent transition-all"
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -449,7 +449,7 @@ function MatchesPage() {
         </h1>
   
         {activeMatches.length === 0 ? (
-          <Card className="overflow-visible">
+          <Card className="overflow-visible bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-950 dark:to-slate-900/50 border-slate-500/20">
             <CardContent className="p-8 text-center">
               <p className="text-muted-foreground">
                 {pendingMatches.length > 0
@@ -463,7 +463,7 @@ function MatchesPage() {
             {activeMatches.map((match) => (
               <Card
                 key={match.id}
-                className="overflow-visible hover-elevate cursor-pointer h-full"
+                className="overflow-visible hover-elevate cursor-pointer h-full bg-gradient-to-br from-violet-50/30 via-purple-50/20 to-fuchsia-50/30 dark:from-violet-950/10 dark:via-purple-950/5 dark:to-fuchsia-950/10 border-purple-500/10 hover:shadow-xl hover:shadow-purple-500/20 transition-all"
                 onClick={() => setLocation(`/user/${match.otherUser?.id}`)}
               >
                 <CardContent className="p-4 flex flex-col h-full">
@@ -518,7 +518,7 @@ function MatchesPage() {
                   <div className="flex-1" />
   
                   <Button
-                    className="w-full"
+                    className="w-full bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-700 hover:via-purple-700 hover:to-fuchsia-700 text-white border-0 shadow-md shadow-purple-500/30"
                     size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1326,7 +1326,84 @@ function MainApp() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen relative">
+      {/* Universal App Background with Texture & Animations */}
+      <div className="fixed inset-0 bg-gradient-to-br from-slate-50 via-violet-50/30 to-purple-50/40 dark:from-slate-950 dark:via-violet-950/30 dark:to-purple-950/40">
+        {/* Noise texture overlay */}
+        <div className="absolute inset-0 opacity-[0.015] dark:opacity-[0.02]" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'repeat',
+          backgroundSize: '128px 128px'
+        }} />
+        
+        {/* Animated gradient orbs with movement */}
+        <div 
+          className="absolute top-0 left-0 w-[500px] h-[500px] bg-gradient-radial from-violet-400/10 to-transparent dark:from-violet-600/8 dark:to-transparent rounded-full blur-3xl animate-float" 
+          style={{
+            animation: 'float 20s ease-in-out infinite'
+          }}
+        />
+        <div 
+          className="absolute top-1/4 right-0 w-[450px] h-[450px] bg-gradient-radial from-purple-400/8 to-transparent dark:from-purple-600/6 dark:to-transparent rounded-full blur-3xl animate-float-delayed" 
+          style={{
+            animation: 'float 25s ease-in-out infinite',
+            animationDelay: '5s'
+          }}
+        />
+        <div 
+          className="absolute bottom-0 left-1/3 w-[480px] h-[480px] bg-gradient-radial from-fuchsia-400/9 to-transparent dark:from-fuchsia-600/7 dark:to-transparent rounded-full blur-3xl animate-float-slow" 
+          style={{
+            animation: 'float 30s ease-in-out infinite',
+            animationDelay: '10s'
+          }}
+        />
+        
+        {/* Additional floating orbs for depth */}
+        <div 
+          className="absolute top-1/2 left-1/4 w-[350px] h-[350px] bg-gradient-radial from-indigo-400/6 to-transparent dark:from-indigo-600/5 dark:to-transparent rounded-full blur-3xl" 
+          style={{
+            animation: 'float-reverse 35s ease-in-out infinite',
+            animationDelay: '15s'
+          }}
+        />
+        <div 
+          className="absolute bottom-1/4 right-1/3 w-[400px] h-[400px] bg-gradient-radial from-pink-400/7 to-transparent dark:from-pink-600/5 dark:to-transparent rounded-full blur-3xl" 
+          style={{
+            animation: 'float-reverse 28s ease-in-out infinite',
+            animationDelay: '8s'
+          }}
+        />
+        
+        {/* Grid pattern overlay with subtle animation */}
+        <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.02] animate-grid-pulse" style={{
+          backgroundImage: `linear-gradient(rgba(139, 92, 246, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(139, 92, 246, 0.1) 1px, transparent 1px)`,
+          backgroundSize: '64px 64px',
+          animation: 'grid-pulse 8s ease-in-out infinite'
+        }} />
+      </div>
+      
+      {/* Add keyframes for animations */}
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(30px, -30px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+        
+        @keyframes float-reverse {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(-25px, 25px) scale(0.95); }
+          66% { transform: translate(25px, -25px) scale(1.05); }
+        }
+        
+        @keyframes grid-pulse {
+          0%, 100% { opacity: 0.03; }
+          50% { opacity: 0.05; }
+        }
+      `}</style>
+      
+      {/* App content with backdrop */}
+      <div className="relative z-10 min-h-screen">
       <Header
         activeTab={activeTab}
         onTabChange={handleTabChange}
@@ -1428,6 +1505,7 @@ function MainApp() {
         </Switch>
       </main>
       <MobileNav activeTab={activeTab} onTabChange={handleTabChange} />
+    </div>
     </div>
   );
 }
