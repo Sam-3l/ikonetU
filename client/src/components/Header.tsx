@@ -89,14 +89,14 @@ export default function Header({
             <SearchIcon className="h-5 w-5" />
           </Button>
 
-          <Button
+          {/* <Button
             size="icon"
             variant="ghost"
             onClick={toggleTheme}
             data-testid="button-theme-toggle"
           >
             {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
+          </Button> */}
 
           {/* Notification Bell */}
           <Button 

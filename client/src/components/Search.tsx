@@ -47,7 +47,7 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
     queryFn: () => api.get("/api/videos/search/suggestions/"),
   });
 
-  // Fetch autocomplete suggestions as user types (FIXED ENDPOINT)
+  // Fetch autocomplete suggestions as user types
   const { data: autocompleteData } = useQuery<{ suggestions: string[] }>({
     queryKey: ["/api/videos/search/autocomplete/", searchInput],
     queryFn: () => api.get(`/api/videos/search/autocomplete/?q=${encodeURIComponent(searchInput)}`),
@@ -168,7 +168,7 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
     ];
 
     return (
-      <div className="fixed inset-0 z-50">
+      <div className="fixed inset-0 z-50 overflow-hidden">
         {/* Background for video player */}
         <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-violet-50/30 to-purple-50/40 dark:from-slate-950 dark:via-violet-950/30 dark:to-purple-950/40">
           <div className="absolute inset-0 opacity-[0.015] dark:opacity-[0.02]" style={{
@@ -215,12 +215,12 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
     );
   }
 
-  // Show suggestions in main area when typing (TikTok/YouTube style)
+  // Show suggestions in main area when typing
   const showSuggestions = searchInput.length >= 1 && !submittedQuery;
   const suggestions = autocompleteData?.suggestions || [];
 
   return (
-    <div className="h-full flex flex-col relative">
+    <div className="h-full flex flex-col relative overflow-hidden">
       {/* Modal Background Layer */}
       <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-violet-50/30 to-purple-50/40 dark:from-slate-950 dark:via-violet-950/30 dark:to-purple-950/40">
         {/* Noise texture */}
@@ -236,10 +236,10 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
       </div>
       
       {/* Content */}
-      <div className="relative z-10 h-full flex flex-col">
+      <div className="relative z-10 h-full flex flex-col overflow-hidden">
       {/* Search Header with Blur */}
-      <div className="sticky top-0 z-10 bg-white/40 dark:bg-slate-950/40 backdrop-blur-xl border-b p-4">
-        <div className="flex items-center gap-3 max-w-2xl mx-auto">
+      <div className="sticky top-0 z-10 bg-white/40 dark:bg-slate-950/40 backdrop-blur-xl border-b p-4 flex-shrink-0">
+        <div className="flex items-center gap-3 w-full max-w-2xl mx-auto">
           <div className="flex-1 min-w-0">
             <div className="relative w-full">
               <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -248,7 +248,7 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
               <Input
                 ref={inputRef}
                 type="text"
-                placeholder="Search videos, founders, investors..."
+                placeholder="Search videos, founders..."
                 value={searchInput}
                 onChange={(e) => {
                   setSearchInput(e.target.value);
@@ -259,8 +259,7 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSearch();
                 }}
-                style={{ paddingLeft: '2.5rem', paddingRight: '2.5rem' }}
-                className="w-full bg-muted/50"
+                className="w-full bg-muted/50 pl-10 pr-10"
               />
               {searchInput && (
                 <div className="absolute right-1 top-1/2 -translate-y-1/2">
@@ -277,34 +276,36 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
             </div>
           </div>
           {onClose && (
-            <Button variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button variant="ghost" size="sm" onClick={onClose} className="flex-shrink-0">Cancel</Button>
           )}
         </div>
 
         {submittedQuery && (
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="max-w-2xl mx-auto mt-4">
-            <TabsList className="w-full bg-muted/50">
-              <TabsTrigger value="all" className="flex-1">
-                All ({(results?.videos?.length || 0) + (results?.profiles?.length || 0)})
-              </TabsTrigger>
-              <TabsTrigger value="videos" className="flex-1">
-                <Video className="h-4 w-4 mr-2" />
-                Videos ({results?.videos?.length || 0})
-              </TabsTrigger>
-              <TabsTrigger value="profiles" className="flex-1">
-                <User className="h-4 w-4 mr-2" />
-                People ({results?.profiles?.length || 0})
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="w-full max-w-2xl mx-auto mt-4 overflow-x-auto">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+              <TabsList className="w-full bg-muted/50 grid grid-cols-3">
+                <TabsTrigger value="all" className="text-xs sm:text-sm">
+                  All ({(results?.videos?.length || 0) + (results?.profiles?.length || 0)})
+                </TabsTrigger>
+                <TabsTrigger value="videos" className="text-xs sm:text-sm">
+                  <Video className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  Videos ({results?.videos?.length || 0})
+                </TabsTrigger>
+                <TabsTrigger value="profiles" className="text-xs sm:text-sm">
+                  <User className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  People ({results?.profiles?.length || 0})
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         )}
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        {/* SUGGESTIONS IN MAIN AREA (TikTok/YouTube style) */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        {/* SUGGESTIONS IN MAIN AREA */}
         {showSuggestions && (
-          <div className="p-4 space-y-2 max-w-2xl mx-auto">
+          <div className="p-4 space-y-2 w-full max-w-2xl mx-auto">
             <div className="text-sm font-medium text-muted-foreground mb-3">
               Suggestions
             </div>
@@ -316,7 +317,7 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
                   onClick={() => handleSelectSuggestion(suggestion)}
                 >
                   <SearchIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                  <span className="flex-1">{suggestion}</span>
+                  <span className="flex-1 truncate">{suggestion}</span>
                 </div>
               ))
             ) : (
@@ -329,7 +330,7 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
 
         {/* Empty State - Search History + Trending */}
         {!submittedQuery && !showSuggestions && !isLoading && (
-          <div className="p-4 space-y-6 max-w-2xl mx-auto">
+          <div className="p-4 space-y-6 w-full max-w-2xl mx-auto">
             {/* Search History */}
             {searchHistory.length > 0 && (
               <div>
@@ -350,11 +351,11 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
                       onClick={() => handleSelectSuggestion(term)}
                     >
                       <Clock className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                      <span className="flex-1">{term}</span>
+                      <span className="flex-1 truncate">{term}</span>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                         onClick={(e) => handleRemoveFromHistory(term, e)}
                       >
                         <X className="h-4 w-4" />
@@ -389,21 +390,131 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
 
         {/* Loading */}
         {isLoading && (
-          <div className="p-4 space-y-4 max-w-2xl mx-auto">
+          <div className="p-4 space-y-4 w-full max-w-2xl mx-auto">
             {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-20" />
+              <Skeleton key={i} className="h-20 w-full" />
             ))}
           </div>
         )}
 
         {/* Results */}
         {submittedQuery && !isLoading && results && (
-          <Tabs value={activeTab} className="w-full">
-            <TabsContent value="all" className="p-4 space-y-6 m-0 max-w-4xl mx-auto">
-              {/* Videos */}
-              {results.videos.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-3">Videos</h3>
+          <div className="w-full">
+            <Tabs value={activeTab}>
+              <TabsContent value="all" className="p-4 space-y-6 m-0 w-full max-w-4xl mx-auto">
+                {/* Videos */}
+                {results.videos.length > 0 && (
+                  <div className="w-full">
+                    <h3 className="font-semibold mb-3">Videos</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                      {results.videos.map((video, index) => (
+                        <Card
+                          key={video.id}
+                          className="cursor-pointer hover-elevate overflow-hidden border border-slate-200/50 dark:border-slate-800/50 hover:border-primary/50 transition-all hover:shadow-lg hover:shadow-primary/10 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm"
+                          onClick={() => handleVideoClick(index)}
+                        >
+                          <div className="relative aspect-[9/16] bg-muted group">
+                            {index === 0 ? (
+                              <video
+                                src={video.url}
+                                poster={video.thumbnailUrl}
+                                className="w-full h-full object-cover"
+                                autoPlay
+                                muted
+                                loop
+                                playsInline
+                              />
+                            ) : video.thumbnailUrl ? (
+                              <img 
+                                src={video.thumbnailUrl} 
+                                alt={video.title} 
+                                className="w-full h-full object-cover" 
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-muted">
+                                <Video className="h-8 w-8 text-muted-foreground" />
+                              </div>
+                            )}
+                            
+                            {index !== 0 && (
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center">
+                                  <Play className="w-6 h-6 text-foreground ml-1" />
+                                </div>
+                              </div>
+                            )}
+                            
+                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                              <p className="text-white text-xs font-medium line-clamp-2">
+                                {video.title || video.founder?.profile?.companyName}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1 text-white/80 text-xs">
+                                <span className="flex items-center gap-1">
+                                  <Eye className="h-3 w-3" />
+                                  {formatCount(video.viewCount || 0)}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Heart className="h-3 w-3" />
+                                  {formatCount(video.likeCount || 0)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Profiles */}
+                {results.profiles.length > 0 && (
+                  <div className="w-full">
+                    <h3 className="font-semibold mb-3">People</h3>
+                    <div className="space-y-2">
+                      {results.profiles.map((profile) => (
+                        <Card
+                          key={profile.id}
+                          className="cursor-pointer hover-elevate hover:border-primary/50 transition-all bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm border-slate-200/50 dark:border-slate-800/50"
+                          onClick={() => onSelectProfile?.(profile.id)}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-12 w-12 flex-shrink-0">
+                                <AvatarImage src={profile.avatar_url} />
+                                <AvatarFallback>{profile.name?.charAt(0) || "?"}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">{profile.name}</p>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {profile.company_name || profile.firm_name || profile.role}
+                                </p>
+                              </div>
+                              <Badge variant="secondary" className="flex-shrink-0">{profile.role}</Badge>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* No Results */}
+                {results.videos.length === 0 && results.profiles.length === 0 && (
+                  <div className="text-center py-12">
+                    <SearchIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="font-semibold mb-2">No results found</h3>
+                    <p className="text-muted-foreground mb-4">
+                      We couldn't find anything for "{submittedQuery}"
+                    </p>
+                    <Button variant="outline" onClick={handleClearSearch}>
+                      Clear Search
+                    </Button>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="videos" className="p-4 m-0 w-full max-w-4xl mx-auto">
+                {results.videos.length > 0 ? (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                     {results.videos.map((video, index) => (
                       <Card
@@ -412,35 +523,19 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
                         onClick={() => handleVideoClick(index)}
                       >
                         <div className="relative aspect-[9/16] bg-muted group">
-                          {index === 0 ? (
-                            <video
-                              src={video.url}
-                              poster={video.thumbnailUrl}
-                              className="w-full h-full object-cover"
-                              autoPlay
-                              muted
-                              loop
-                              playsInline
-                            />
-                          ) : video.thumbnailUrl ? (
-                            <img 
-                              src={video.thumbnailUrl} 
-                              alt={video.title} 
-                              className="w-full h-full object-cover" 
-                            />
+                          {video.thumbnailUrl ? (
+                            <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-muted">
+                            <div className="w-full h-full flex items-center justify-center">
                               <Video className="h-8 w-8 text-muted-foreground" />
                             </div>
                           )}
                           
-                          {index !== 0 && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <div className="w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center">
-                                <Play className="w-6 h-6 text-foreground ml-1" />
-                              </div>
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center">
+                              <Play className="w-6 h-6 text-foreground ml-1" />
                             </div>
-                          )}
+                          </div>
                           
                           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2">
                             <p className="text-white text-xs font-medium line-clamp-2">
@@ -461,13 +556,16 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
                       </Card>
                     ))}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="text-center py-12">
+                    <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">No videos found</p>
+                  </div>
+                )}
+              </TabsContent>
 
-              {/* Profiles */}
-              {results.profiles.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-3">People</h3>
+              <TabsContent value="profiles" className="p-4 m-0 w-full max-w-2xl mx-auto">
+                {results.profiles.length > 0 ? (
                   <div className="space-y-2">
                     {results.profiles.map((profile) => (
                       <Card
@@ -477,7 +575,7 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
                       >
                         <CardContent className="p-4">
                           <div className="flex items-center gap-3">
-                            <Avatar className="h-12 w-12">
+                            <Avatar className="h-12 w-12 flex-shrink-0">
                               <AvatarImage src={profile.avatar_url} />
                               <AvatarFallback>{profile.name?.charAt(0) || "?"}</AvatarFallback>
                             </Avatar>
@@ -487,116 +585,21 @@ export default function Search({ onClose, onSelectProfile }: SearchProps) {
                                 {profile.company_name || profile.firm_name || profile.role}
                               </p>
                             </div>
-                            <Badge variant="secondary">{profile.role}</Badge>
+                            <Badge variant="secondary" className="flex-shrink-0">{profile.role}</Badge>
                           </div>
                         </CardContent>
                       </Card>
                     ))}
                   </div>
-                </div>
-              )}
-
-              {/* No Results */}
-              {results.videos.length === 0 && results.profiles.length === 0 && (
-                <div className="text-center py-12">
-                  <SearchIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="font-semibold mb-2">No results found</h3>
-                  <p className="text-muted-foreground mb-4">
-                    We couldn't find anything for "{submittedQuery}"
-                  </p>
-                  <Button variant="outline" onClick={handleClearSearch}>
-                    Clear Search
-                  </Button>
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="videos" className="p-4 m-0 max-w-4xl mx-auto">
-              {results.videos.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {results.videos.map((video, index) => (
-                    <Card
-                      key={video.id}
-                      className="cursor-pointer hover-elevate overflow-hidden border border-slate-200/50 dark:border-slate-800/50 hover:border-primary/50 transition-all hover:shadow-lg hover:shadow-primary/10 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm"
-                      onClick={() => handleVideoClick(index)}
-                    >
-                      <div className="relative aspect-[9/16] bg-muted group">
-                        {video.thumbnailUrl ? (
-                          <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Video className="h-8 w-8 text-muted-foreground" />
-                          </div>
-                        )}
-                        
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <div className="w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center">
-                            <Play className="w-6 h-6 text-foreground ml-1" />
-                          </div>
-                        </div>
-                        
-                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                          <p className="text-white text-xs font-medium line-clamp-2">
-                            {video.title || video.founder?.profile?.companyName}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1 text-white/80 text-xs">
-                            <span className="flex items-center gap-1">
-                              <Eye className="h-3 w-3" />
-                              {formatCount(video.viewCount || 0)}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Heart className="h-3 w-3" />
-                              {formatCount(video.likeCount || 0)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No videos found</p>
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="profiles" className="p-4 m-0 max-w-2xl mx-auto">
-              {results.profiles.length > 0 ? (
-                <div className="space-y-2">
-                  {results.profiles.map((profile) => (
-                    <Card
-                      key={profile.id}
-                      className="cursor-pointer hover-elevate hover:border-primary/50 transition-all bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm border-slate-200/50 dark:border-slate-800/50"
-                      onClick={() => onSelectProfile?.(profile.id)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-12 w-12">
-                            <AvatarImage src={profile.avatar_url} />
-                            <AvatarFallback>{profile.name?.charAt(0) || "?"}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{profile.name}</p>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {profile.company_name || profile.firm_name || profile.role}
-                            </p>
-                          </div>
-                          <Badge variant="secondary">{profile.role}</Badge>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <User className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No people found</p>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+                ) : (
+                  <div className="text-center py-12">
+                    <User className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">No people found</p>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
         )}
       </div>
       </div>
