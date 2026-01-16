@@ -44,6 +44,8 @@ import ResetPassword from "@/components/ResetPassword";
 
 import MessagesPage from './pages/MessagesPage';
 import ProfilePage from '@/components/ProfilePage';
+import FounderPage from "@/components/FounderPage"
+import JudgePage from "@/components/JudgePage"
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1277,7 +1279,7 @@ function MainApp() {
     }
   
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background to-muted/30">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted/30">
         <Switch>
           <Route path="/forgot-password">
             <ForgotPassword onBack={() => setLocation("/")} />
@@ -1311,6 +1313,13 @@ function MainApp() {
                 />
               );
             }}
+          </Route>
+
+          <Route path="/founder">
+            <FounderPage />
+          </Route>
+          <Route path="/judge">
+            <JudgePage />
           </Route>
           
           <Route>
