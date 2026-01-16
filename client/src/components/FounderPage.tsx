@@ -176,7 +176,7 @@ export default function FounderPage() {
             <div className="relative rounded-xl overflow-hidden shadow-lg h-48">
               <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-purple-700 to-purple-600" />
               <div className="relative z-10 h-full flex flex-col items-center justify-center text-white p-6">
-                <div className="text-5xl font-bold mb-2">6 weeks</div>
+                <div className="text-3xl font-bold mb-2">6 weeks</div>
                 <p className="text-purple-200 text-sm text-center">Average Investor Response Time</p>
               </div>
             </div>
@@ -185,7 +185,7 @@ export default function FounderPage() {
             <div className="relative rounded-xl overflow-hidden shadow-lg h-48">
               <div className="absolute inset-0 bg-gradient-to-br from-purple-800 via-purple-600 to-purple-500" />
               <div className="relative z-10 h-full flex flex-col items-center justify-center text-white p-6">
-                <div className="text-5xl font-bold mb-2">60 sec</div>
+                <div className="text-3xl font-bold mb-2">60 sec</div>
                 <p className="text-purple-200 text-sm text-center">Connect with Investors Instantly</p>
               </div>
             </div>
@@ -195,7 +195,7 @@ export default function FounderPage() {
           <div className="relative rounded-xl overflow-hidden shadow-lg h-32 max-w-3xl mx-auto">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-purple-700 to-purple-600" />
             <div className="relative z-10 h-full flex items-center justify-center text-white p-6">
-              <div className="text-2xl font-bold">We're changing the game</div>
+              <div className="text-xl font-bold">We're changing the game</div>
             </div>
           </div>
         </div>

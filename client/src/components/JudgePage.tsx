@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { api } from "@/lib/apiClient";
 
 export default function JudgePage() {
   const [formData, setFormData] = useState({
@@ -33,10 +34,16 @@ export default function JudgePage() {
     })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    window.open('https://forms.gle/sHve5VZvWejeHr989', '_blank')
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+  
+    try {
+      await api.post("/api/notifications/judge-application/", formData);
+      alert("Application submitted successfully!");
+    } catch (err: any) {
+      alert(err.response?.data?.error || "Failed to submit application");
+    }
+  };  
 
   const judges = [
     {
@@ -85,21 +92,21 @@ export default function JudgePage() {
 
   return (
     <div className="w-full min-h-screen bg-white">
-      {/* Hero Section with Background Image */}
-      <section className="relative w-full h-[600px] bg-cover bg-center" style={{ backgroundImage: "url('/judge-hero.jpg')" }}>
+      {/* Hero Section with Background Image - TALLER */}
+      <section className="relative w-full min-h-[700px] bg-cover bg-center flex items-center" style={{ backgroundImage: "url('/judge-hero.png')" }}>
         {/* Dark overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/60 to-black/70" />
         
-        {/* Header */}
-        <header className="relative z-10 w-full px-6 lg:px-16 py-5 flex items-center justify-between">
-          <div className="inline-flex items-center gap-2 bg-purple-600/80 backdrop-blur-sm rounded-full px-4 py-2">
+        {/* Header - NO HAMBURGER */}
+        <header className="absolute top-0 left-0 right-0 z-20 w-full px-6 lg:px-16 py-5 flex items-center justify-between">
+          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 backdrop-blur-sm rounded-full px-5 py-2.5 shadow-lg">
             <span className="text-white font-bold text-lg">ikonetU</span>
           </div>
         </header>
 
         {/* Hero Content */}
-        <div className="relative z-10 h-full flex items-center">
-          <div className="max-w-7xl mx-auto px-6 lg:px-16 w-full">
+        <div className="relative z-10 w-full">
+          <div className="max-w-7xl mx-auto px-6 lg:px-16">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight max-w-3xl">
               Shape the Future of African Entrepreneurship
             </h1>
@@ -108,7 +115,7 @@ export default function JudgePage() {
             </p>
             <Button 
               onClick={() => window.open('https://forms.gle/sHve5VZvWejeHr989', '_blank')}
-              className="bg-white hover:bg-gray-100 text-gray-900 px-8 py-3 rounded-full text-base font-semibold"
+              className="bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 hover:from-purple-700 hover:via-purple-600 hover:to-pink-600 text-white px-8 py-3 rounded-full text-base font-semibold shadow-lg"
             >
               Become a Judge
             </Button>
@@ -117,76 +124,72 @@ export default function JudgePage() {
       </section>
 
       {/* Why Become a Judge Section */}
-      <section className="w-full px-6 lg:px-16 py-16 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4">
+      <section className="relative w-full px-6 lg:px-16 py-20 bg-white overflow-hidden">
+        {/* Beautiful gradient orbs in background */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-20 -left-20 w-[500px] h-[500px] bg-gradient-to-br from-purple-200/30 to-pink-200/30 rounded-full blur-3xl" />
+          <div className="absolute top-40 -right-20 w-[450px] h-[450px] bg-gradient-to-br from-blue-200/30 to-purple-200/30 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 left-1/3 w-[400px] h-[400px] bg-gradient-to-br from-pink-200/30 to-rose-200/30 rounded-full blur-3xl" />
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4 text-gray-900">
             Why Become a <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">Judge</span>?
           </h2>
           <p className="text-center text-gray-600 text-base mb-12 max-w-3xl mx-auto">
-            Get first access to 10,000+ promising African student entrepreneurs who anyone else. Identify potential investments or partnerships.
+            Get first access to 10,000+ promising African student entrepreneurs. Identify potential investments or partnerships.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               {
-                icon: (
-                  <svg className="w-12 h-12 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                  </svg>
-                ),
+                icon: "/icons/discover-talent.png",
                 title: "Discover Talent Early",
-                description: "Get first access to 10,000+ promising African student entrepreneurs who anyone else. Identify potential investments or partnerships."
+                description: "Get first access to 10,000+ promising African student entrepreneurs. Identify potential investments or partnerships."
               },
               {
-                icon: (
-                  <svg className="w-12 h-12 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                  </svg>
-                ),
+                icon: "/icons/build-brand.png",
                 title: "Build Your Brand",
                 description: "Position yourself as a thought leader supporting African innovation. Gain visibility across student networks and media coverage."
               },
               {
-                icon: (
-                  <svg className="w-12 h-12 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                ),
+                icon: "/icons/network.png",
                 title: "Network with Leaders",
                 description: "Connect with fellow judges from SeedLegals, Tide, and other leading companies shaping the future of African tech."
               },
               {
-                icon: (
-                  <svg className="w-12 h-12 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
-                ),
+                icon: "/icons/give-back.png",
                 title: "Give Back",
                 description: "Mentor the next generation, share your expertise, and create lasting impact on African entrepreneurship ecosystems."
               },
               {
-                icon: (
-                  <svg className="w-12 h-12 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
-                ),
+                icon: "/icons/spot-trends.png",
                 title: "Spot Trends",
                 description: "See emerging ideas and market opportunities across diverse sectors before they become mainstream."
               },
               {
-                icon: (
-                  <svg className="w-12 h-12 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                ),
+                icon: "/icons/efficient.png",
                 title: "Efficient Format",
                 description: "Review pitches in 60 seconds each. No lengthy decks or meetings required. Judge on your schedule."
               }
             ].map((benefit, idx) => (
-              <div key={idx} className="bg-gray-50 rounded-2xl p-6 hover:shadow-lg transition-shadow">
-                <div className="mb-4">{benefit.icon}</div>
-                <h3 className="font-bold text-lg text-gray-900 mb-2">{benefit.title}</h3>
-                <p className="text-sm text-gray-600 leading-relaxed">{benefit.description}</p>
+              <div
+                key={idx}
+                className="bg-white rounded-2xl p-6 hover:shadow-xl transition-all border border-gray-100"
+              >
+                <img
+                  src={benefit.icon}
+                  alt={benefit.title}
+                  className="w-16 h-16 mb-4 object-contain transition-transform hover:scale-110"
+                />
+
+                <h3 className="font-bold text-lg text-gray-900 mb-2">
+                  {benefit.title}
+                </h3>
+
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  {benefit.description}
+                </p>
               </div>
             ))}
           </div>
@@ -194,9 +197,17 @@ export default function JudgePage() {
       </section>
 
       {/* What You'll Do Section */}
-      <section className="w-full px-6 lg:px-16 py-16 bg-gradient-to-b from-white to-purple-50/30">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4">
+      <section className="relative w-full px-6 lg:px-16 py-20 bg-gradient-to-b from-purple-50/50 to-pink-50/30 overflow-hidden">
+        {/* Floating circles decoration */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
+          <div className="absolute top-10 left-10 w-32 h-32 border-4 border-purple-300 rounded-full" />
+          <div className="absolute top-40 right-20 w-24 h-24 border-4 border-pink-300 rounded-full" />
+          <div className="absolute bottom-20 left-1/4 w-40 h-40 border-4 border-blue-300 rounded-full" />
+          <div className="absolute bottom-10 right-1/3 w-28 h-28 border-4 border-rose-300 rounded-full" />
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4 text-gray-900">
             What <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">You'll</span> Do as a Judge
           </h2>
 
@@ -223,9 +234,12 @@ export default function JudgePage() {
                 description: "Join final judging panel to select top 3 winners. Participate in awards ceremony and celebrate winners with the community."
               }
             ].map((step, idx) => (
-              <div key={idx} className="relative bg-gradient-to-br from-purple-900 via-purple-800 to-purple-900 text-white rounded-2xl p-8 overflow-hidden">
+              <div
+                key={idx}
+                className="relative bg-gradient-to-br from-purple-900 via-purple-800 to-purple-900 text-white rounded-3xl p-12 min-h-[260px] overflow-hidden shadow-2xl hover:shadow-3xl transition-all duration-300 hover:-translate-y-1"
+              >
                 {/* Large number in background */}
-                <div className="absolute bottom-0 right-0 text-[180px] font-black text-white/5 leading-none">
+                <div className="absolute bottom-0 right-0 text-[180px] font-black text-white/5 leading-none select-none">
                   {step.number}
                 </div>
                 
@@ -240,19 +254,25 @@ export default function JudgePage() {
       </section>
 
       {/* Time Commitment Section */}
-      <section className="w-full px-6 lg:px-16 py-16 bg-white">
-        <div className="max-w-5xl mx-auto">
+      <section className="relative w-full px-6 lg:px-16 py-20 bg-white overflow-hidden">
+        {/* Gradient mesh background */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-br from-purple-100/40 via-pink-100/40 to-blue-100/40 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-to-tr from-rose-100/40 via-purple-100/40 to-pink-100/40 rounded-full blur-3xl" />
+        </div>
+
+        <div className="max-w-5xl mx-auto relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
             {/* Left - Title */}
             <div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
+              <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-2">
                 Time<br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">Commitment</span>
               </h2>
             </div>
 
             {/* Right - Details Card */}
-            <div className="relative bg-gradient-to-br from-purple-900 via-purple-800 to-purple-900 text-white rounded-2xl p-8">
+            <div className="relative bg-gradient-to-br from-purple-900 via-purple-800 to-purple-900 text-white rounded-2xl p-8 shadow-xl">
               <h3 className="text-4xl font-bold mb-2">2-5 Hours</h3>
               <p className="text-purple-200 text-sm mb-6">Total time commitment over 4 weeks</p>
 
@@ -265,7 +285,7 @@ export default function JudgePage() {
                   "Optional: Awards ceremony attendance (1 hour, virtual)"
                 ].map((item, idx) => (
                   <div key={idx} className="flex items-start gap-3">
-                    <div className="w-5 h-5 rounded-full bg-purple-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center flex-shrink-0 mt-0.5">
                       <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
@@ -280,16 +300,24 @@ export default function JudgePage() {
       </section>
 
       {/* Judges Panel Section */}
-      <section className="w-full px-6 lg:px-16 py-16 bg-gradient-to-b from-white to-purple-50/30">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12">
+      <section className="relative w-full px-6 lg:px-16 py-20 bg-gradient-to-b from-purple-50/50 via-pink-50/30 to-purple-50/50 overflow-hidden">
+        {/* Dot grid pattern */}
+        <div className="absolute inset-0 opacity-[0.15] pointer-events-none">
+          <div className="w-full h-full" style={{
+            backgroundImage: 'radial-gradient(circle, #a855f7 1px, transparent 1px)',
+            backgroundSize: '30px 30px'
+          }} />
+        </div>
+
+        <div className="max-w-6xl mx-auto relative z-10">
+          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12 text-gray-900">
             Join Our <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">Prestigious</span> Panel
           </h2>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
             {judges.map((judge, idx) => (
               <div key={idx} className="group">
-                <div className="relative mb-3 rounded-xl overflow-hidden aspect-square shadow-md group-hover:shadow-lg transition-shadow">
+                <div className="relative mb-3 rounded-xl overflow-hidden aspect-square shadow-md group-hover:shadow-xl transition-shadow">
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500" />
                   <img 
                     src={judge.photo} 
@@ -307,39 +335,73 @@ export default function JudgePage() {
       </section>
 
       {/* Who We're Looking For Section */}
-      <section className="w-full px-6 lg:px-16 py-16 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12">
+      <section className="relative w-full px-6 lg:px-16 py-20 bg-white overflow-hidden">
+        {/* Diagonal gradient stripes */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-[0.03]">
+          {Array.from({ length: 15 }).map((_, i) => (
+            <div 
+              key={i}
+              className="absolute h-[200px] w-full bg-gradient-to-r from-transparent via-purple-500 to-transparent transform -rotate-12"
+              style={{ 
+                top: `${i * 8}%`,
+                left: '-50%',
+                right: '-50%'
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Floating gradient orbs */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-20 left-10 w-[400px] h-[400px] bg-gradient-to-br from-purple-200/30 to-transparent rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-10 w-[450px] h-[450px] bg-gradient-to-br from-pink-200/30 to-transparent rounded-full blur-3xl" />
+        </div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12 text-gray-900">
             Who <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">We're</span> Looking For
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               {
-                icon: "💼",
+                icon: "/icons/industry-experience.png",
                 title: "Industry Experience",
                 description: "Investors, founders, executives, or industry experts with 5+ years experience in entrepreneurship, investing, or business development."
               },
               {
-                icon: "🤝",
+                icon: "/icons/mentorship.png",
                 title: "Commitment to Mentorship",
                 description: "Genuine interest in supporting student entrepreneurs and contributing to African innovation ecosystems."
               },
               {
-                icon: "📊",
+                icon: "/icons/diverse.png",
                 title: "Diverse Perspectives",
                 description: "We welcome judges from all industries, backgrounds, and geographies. Diversity strengthens our evaluation process."
               },
               {
-                icon: "⏰",
+                icon: "/icons/time.png",
                 title: "Time Availability",
                 description: "Ability to commit 2-5 hours over 4 weeks, with flexibility to evaluate pitches on your own schedule."
               }
             ].map((criteria, idx) => (
-              <div key={idx} className="bg-gray-50 rounded-2xl p-6">
-                <div className="text-5xl mb-4">{criteria.icon}</div>
-                <h3 className="font-bold text-base text-gray-900 mb-2">{criteria.title}</h3>
-                <p className="text-sm text-gray-600 leading-relaxed">{criteria.description}</p>
+              <div
+                key={idx}
+                className="bg-white rounded-2xl p-6 border border-gray-100 hover:shadow-xl transition-all"
+              >
+                <img
+                  src={criteria.icon}
+                  alt={criteria.title}
+                  className="w-20 h-20 mb-4 transition-transform hover:scale-110"
+                />
+
+                <h3 className="font-bold text-base text-gray-900 mb-2">
+                  {criteria.title}
+                </h3>
+
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  {criteria.description}
+                </p>
               </div>
             ))}
           </div>
@@ -347,8 +409,15 @@ export default function JudgePage() {
       </section>
 
       {/* Application Form Section */}
-      <section className="w-full px-6 lg:px-16 py-20 bg-gradient-to-br from-purple-950 via-purple-900 to-indigo-950">
-        <div className="max-w-2xl mx-auto">
+      <section className="relative w-full px-6 lg:px-16 py-20 bg-gradient-to-br from-purple-950 via-purple-900 to-indigo-950 overflow-hidden">
+        {/* Animated gradient orbs */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-10 left-10 w-[500px] h-[500px] bg-gradient-to-br from-purple-500/20 to-transparent rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-10 right-10 w-[500px] h-[500px] bg-gradient-to-br from-pink-500/20 to-transparent rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className="absolute top-1/2 left-1/2 w-[400px] h-[400px] bg-gradient-to-br from-blue-500/20 to-transparent rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+        </div>
+
+        <div className="max-w-2xl mx-auto relative z-10">
           <h2 className="text-3xl sm:text-4xl font-bold text-center text-white mb-3">
             Apply To Be A Judge
           </h2>
@@ -485,7 +554,7 @@ export default function JudgePage() {
 
             <Button
               type="submit"
-              className="w-full bg-white hover:bg-gray-100 text-purple-900 py-4 rounded-lg font-semibold text-base mt-6"
+              className="w-full bg-gradient-to-r from-purple-600 via-pink-500 to-rose-500 hover:from-purple-700 hover:via-pink-600 hover:to-rose-600 text-white py-4 rounded-lg font-semibold text-base mt-6 shadow-lg"
             >
               Submit Application
             </Button>
