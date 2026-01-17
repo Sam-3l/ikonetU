@@ -122,7 +122,7 @@ export default function FounderPage() {
               
               <p className="text-gray-600 text-sm sm:text-base mb-6 leading-relaxed relative z-10">
                 Join <span className="font-semibold text-gray-900">10,000+</span> African student entrepreneurs competing for{" "}
-                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 via-yellow-500 to-amber-600 text-white font-bold text-xs shadow-md">£1M</span>{" "}
+                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 via-yellow-500 to-amber-600 text-white font-bold text-xs shadow-md">£2K</span>{" "}
                 in prizes + Free company incorporation.
               </p>
 
@@ -252,7 +252,7 @@ export default function FounderPage() {
 
       {/* Prizes Section - Full Width */}
       <section className="w-full px-6 lg:px-16 py-12 bg-white">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10">
             <h2 className="text-3xl sm:text-4xl font-bold mb-1">
               <span className="text-gray-900">Win Big,</span>
@@ -262,11 +262,12 @@ export default function FounderPage() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* All 9 Prizes - Uniform Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-8">
             {/* Prize 1 */}
-            <div className="text-center">
+            <div className="text-center group">
               <div className="mb-4 flex justify-center">
-                <div className="w-36 h-36 flex items-center justify-center">
+                <div className="w-32 h-32 flex items-center justify-center transition-transform group-hover:scale-105">
                   <img src="/price-award.png" alt="Grand Prize" className="w-full h-full object-contain" />
                 </div>
               </div>
@@ -274,9 +275,9 @@ export default function FounderPage() {
             </div>
 
             {/* Prize 2 */}
-            <div className="text-center">
+            <div className="text-center group">
               <div className="mb-4 flex justify-center">
-                <div className="w-36 h-36 flex items-center justify-center">
+                <div className="w-32 h-32 flex items-center justify-center transition-transform group-hover:scale-105">
                   <img src="/building-illustration.png" alt="US Company" className="w-full h-full object-contain" />
                 </div>
               </div>
@@ -284,17 +285,87 @@ export default function FounderPage() {
             </div>
 
             {/* Prize 3 */}
-            <div className="text-center">
+            <div className="text-center group">
               <div className="mb-4 flex justify-center">
-                <div className="w-36 h-36 flex items-center justify-center">
+                <div className="w-32 h-32 flex items-center justify-center transition-transform group-hover:scale-105">
                   <img src="/plane.png" alt="MVP Support" className="w-full h-full object-contain" />
                 </div>
               </div>
               <h3 className="text-sm font-semibold text-gray-900">MVP Development Support</h3>
             </div>
+
+            {/* Prize 4 */}
+            <div className="text-center group">
+              <div className="mb-4 flex justify-center">
+                <div className="w-32 h-32 flex items-center justify-center transition-transform group-hover:scale-105">
+                  <img src="/prizes/africa-map.webp" alt="African Company" className="w-full h-full object-contain" />
+                </div>
+              </div>
+              <h3 className="text-sm font-semibold text-gray-900">African Country Incorporation</h3>
+            </div>
+
+            {/* Prize 5 */}
+            <div className="text-center group">
+              <div className="mb-4 flex justify-center">
+                <div className="w-32 h-32 flex items-center justify-center transition-transform group-hover:scale-105">
+                  <img src="/prizes/ip-support.png" alt="IP Support" className="w-full h-full object-contain" />
+                </div>
+              </div>
+              <h3 className="text-sm font-semibold text-gray-900">IP & Commercialization Support</h3>
+            </div>
+
+            {/* Prize 6 */}
+            <div className="text-center group">
+              <div className="mb-4 flex justify-center">
+                <div className="w-32 h-32 flex items-center justify-center transition-transform group-hover:scale-105">
+                  <img src="/prizes/tech-devices.png" alt="Tech Devices" className="w-full h-full object-contain" />
+                </div>
+              </div>
+              <h3 className="text-sm font-semibold text-gray-900">Tech Devices & Data</h3>
+            </div>
+
+            {/* Prize 7 */}
+            <div className="text-center group">
+              <div className="mb-4 flex justify-center">
+                <div className="w-32 h-32 flex items-center justify-center transition-transform group-hover:scale-105">
+                  <img src="/prizes/investors.png" alt="Investors Access" className="w-full h-full object-contain" />
+                </div>
+              </div>
+              <h3 className="text-sm font-semibold text-gray-900">Access to Investors</h3>
+            </div>
+
+            {/* Prize 8 */}
+            <div className="text-center group">
+              <div className="mb-4 flex justify-center">
+                <div className="w-32 h-32 flex items-center justify-center transition-transform group-hover:scale-105">
+                  <img src="/prizes/mentorship.png" alt="Mentorship" className="w-full h-full object-contain" />
+                </div>
+              </div>
+              <h3 className="text-sm font-semibold text-gray-900">Industry Mentorship</h3>
+            </div>
+
+            {/* Prize 9 */}
+            <div className="text-center group">
+              <div className="mb-4 flex justify-center">
+                <div className="w-32 h-32 flex items-center justify-center transition-transform group-hover:scale-105">
+                  <img src="/prizes/training.jpg" alt="Training" className="w-full h-full object-contain" />
+                </div>
+              </div>
+              <h3 className="text-sm font-semibold text-gray-900">Training & Internship</h3>
+            </div>
           </div>
         </div>
       </section>
+
+**File structure needed:**
+```
+/public/prizes/
+  - africa-map.png
+  - ip-support.png
+  - tech-devices.png
+  - investors.png
+  - mentorship.png
+  - training.png
 
       {/* Countdown Section - Full Width */}
       <section className="w-full px-6 lg:px-16 py-14 bg-gradient-to-br from-[#1a0b2e] via-[#2d1b4e] to-[#1a0b2e]">
@@ -329,76 +400,76 @@ export default function FounderPage() {
       </section>
 
       {/* Partners Section - Full Width */}
-<section className="w-full px-6 lg:px-16 py-12 bg-white">
-  <div className="max-w-5xl mx-auto">
-    <h2 className="text-2xl sm:text-3xl font-bold text-center mb-3 text-gray-900">
-      Backed by <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">Industry Leaders</span>
-    </h2>
-    <p className="text-center text-gray-600 text-sm mb-10">
-      Partnering with Leading UK and African Tech Companies.
-    </p>
+      <section className="w-full px-6 lg:px-16 py-12 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-3 text-gray-900">
+            Backed by <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">Industry Leaders</span>
+          </h2>
+          <p className="text-center text-gray-600 text-sm mb-10">
+            Partnering with Leading UK and African Tech Companies.
+          </p>
 
-    {/* First Row - 4 Partners with Images */}
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
-      <div className="flex items-center justify-center h-32">
-        <img 
-          src="/partners/seedlegals.png" 
-          alt="SeedLegals" 
-          className="w-full h-full object-contain"
-        />
-      </div>
-      <div className="flex items-center justify-center h-32">
-        <img 
-          src="/partners/tide.png" 
-          alt="Tide" 
-          className="w-full h-full object-contain"
-        />
-      </div>
-      <div className="flex items-center justify-center h-32">
-        <img 
-          src="/partners/grapevine.png" 
-          alt="Grapevine" 
-          className="w-full h-full object-contain"
-        />
-      </div>
-      <div className="flex items-center justify-center h-32 bg-black rounded-lg px-4">
-        <img 
-          src="/partners/stones.png" 
-          alt="Stones" 
-          className="w-full h-full object-contain"
-        />
-      </div>
-    </div>
+          {/* First Row - 4 Partners with Images */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+            <div className="flex items-center justify-center h-32">
+              <img 
+                src="/partners/seedlegals.png" 
+                alt="SeedLegals" 
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="flex items-center justify-center h-32">
+              <img 
+                src="/partners/tide.png" 
+                alt="Tide" 
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="flex items-center justify-center h-32">
+              <img 
+                src="/partners/grapevine.png" 
+                alt="Grapevine" 
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="flex items-center justify-center h-32 bg-black rounded-lg px-4">
+              <img 
+                src="/partners/stones.png" 
+                alt="Stones" 
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </div>
 
-    {/* Second Row - 4 Partners */}
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-      <div className="flex items-center justify-center h-32">
-        <span className="text-gray-900 font-semibold text-base text-center">The Abeke Brand</span>
-      </div>
-      <div className="flex items-center justify-center h-32">
-        <img 
-          src="/partners/funnel.png" 
-          alt="Funnel Upscale" 
-          className="w-full h-full object-contain"
-        />
-      </div>
-      <div className="flex items-center justify-center h-32">
-        <img 
-          src="/partners/vastav.png" 
-          alt="Vastav Intellect" 
-          className="w-full h-full object-contain"
-        />
-      </div>
-      <div className="flex items-center justify-center h-32">
-        <img 
-          src="/partners/russell-bedford.png" 
-          alt="Russell Bedford" 
-          className="w-full h-full object-contain"
-        />
-      </div>
-    </div>
-  </div>
-</section>
+          {/* Second Row - 4 Partners */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="flex items-center justify-center h-32">
+              <span className="text-gray-900 font-semibold text-base text-center">The Abeke Brand</span>
+            </div>
+            <div className="flex items-center justify-center h-32">
+              <img 
+                src="/partners/funnel.png" 
+                alt="Funnel Upscale" 
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="flex items-center justify-center h-32">
+              <img 
+                src="/partners/vastav.png" 
+                alt="Vastav Intellect" 
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="flex items-center justify-center h-32">
+              <img 
+                src="/partners/russell-bedford.png" 
+                alt="Russell Bedford" 
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Judges Section - Full Width */}
       <section className="w-full px-6 lg:px-16 py-12 bg-gradient-to-b from-white via-purple-50/20 to-white">
@@ -429,17 +500,28 @@ export default function FounderPage() {
 
                 <h3 className="font-bold text-sm text-gray-900 mb-0.5">{judge.name}</h3>
                 <p className="text-xs text-purple-600 font-medium mb-1">{judge.title}</p>
-                <p className="text-xs text-gray-600 leading-snug line-clamp-3 mb-2">
-                  {judge.description}
-                </p>
-                {judge.description.length > 150 && (
+                <div className="relative">
+                  <p 
+                    ref={(el) => {
+                      if (el) {
+                        const isTruncated = el.scrollHeight > el.clientHeight;
+                        const button = el.nextElementSibling;
+                        if (button && button.tagName === 'BUTTON') {
+                          button.style.display = isTruncated ? 'block' : 'none';
+                        }
+                      }
+                    }}
+                    className="text-xs text-gray-600 leading-snug line-clamp-3 mb-2"
+                  >
+                    {judge.description}
+                  </p>
                   <button 
                     onClick={() => setSelectedJudge(judge)}
-                    className="text-xs text-purple-600 font-medium hover:text-purple-700 text-left"
+                    className="text-xs text-purple-600 font-medium hover:text-purple-700 text-left hidden"
                   >
                     Read more →
                   </button>
-                )}
+                </div>
               </div>
             ))}
           </div>
