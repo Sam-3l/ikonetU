@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api } from "@/lib/apiClient";
 
 export default function JudgePage() {
+  const [selectedJudge, setSelectedJudge] = useState(null)
+
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -47,47 +49,59 @@ export default function JudgePage() {
 
   const judges = [
     {
+      name: "Adenola Adegbesan",
+      title: "Host, Ikonetu",
+      description: "Prince Adenola Adegbesan is a UK-based legal innovator and venture strategist serving as Project Lead of IkonetU, a global fundraising platform enabling African entrepreneurs to raise capital through 60-second video pitches. He is also Founder & CEO of InspireCraft Global Limited, advising organisations on AI governance and cross-border business transformation. A qualified barrister with venture capital experience, he is recognised for architecting systemic change most notably contributing to Nigeria’s historic police reform, while building scalable, impact-driven ventures across Africa, the UK, and the United States.",
+      photo: "/judges/adenola.jpg"
+    },
+    {
       name: "Anthony Rose",
       title: "Founder & CEO, SeedLegals",
-      description: "Pioneer in LegalTech who served the BBC and now helps 50,000+ startups complete funding rounds.",
-      photo: "/judges/anthony-rose.jpg"
+      description: "Pioneer in Legaltech who saved the BBC and now helps 50,000+ startups complete funding rounds.",
+      photo: "/judges/anthony-rose.png"
     },
     {
       name: "Venkatesh Bharti",
-      title: "Founder, Virtu-invest & Solutions",
+      title: "Founder, Vastav Intellect IP Solutions",
       description: "Award-winning scientist with 80+ granted IPs across IoT, health-tech, and education technology.",
-      photo: "/judges/judge.jpg"
+      photo: "/judges/bharti.png"
     },
     {
-      name: "Okoswo Temiloluwa",
-      title: "Founder, Funnel Growth Labs",
+      name: "Okeowo Temiloluwa",
+      title: "Founder, Funnel Upscale LLC",
       description: "Funnel strategist who has designed 150+ conversion-optimized funnels across 15+ industries.",
-      photo: "/judges/judge.jpg"
+      photo: "/judges/okeowo.png"
     },
     {
       name: "Favour Ben",
-      title: "Founder & CEO, Roots and Radiance",
+      title: "Founder & CEO, Roots and Radiance Network",
       description: "Business lecturer at Arden University supporting hair, beauty, and creative entrepreneurs.",
-      photo: "/judges/favour-ben.jpg"
+      photo: "/judges/favour-ben.png"
     },
     {
       name: "Busola Dakolo",
-      title: "Founder, SistahKitchen",
-      description: "Professional photographer and Head of Communications at C-HUB, empowering African innovation.",
-      photo: "/judges/judge.jpg"
+      title: "Founder, SkillsKitchen",
+      description: "Professional photographer and Head of Communications at CcHUB, empowering African innovation.",
+      photo: "/judges/busola.png"
     },
     {
-      name: "Dimmykiss",
-      title: "Spoken Word Artist & Lawyer",
-      description: "Motivational speaker combining legal expertise with creative expression to inspire young Nigerians.",
-      photo: "/judges/judge.jpg"
+      name: "Osayi Ebohon",
+      title: "Transformational Speaker",
+      description: "Osayi Ebohon is an award-winning transformational speaker, author of BecomingHer: A Mindset and Legacy Transformational Journal, and Convener of the BecomingHer community. With 27 years in social work specializing in adoption and 19 years in real estate, she empowers women globally to achieve financial independence, build wealth, and create lasting legacies through faith-driven mentorship and advocacy.",
+      photo: "/judges/osayi.jpg"
     },
     {
       name: "Elizabeth Adediji",
       title: "Founder, The Abeke Brand",
       description: "MA in Fashion and Creative Pattern Cutting, blending technical precision with aesthetic excellence.",
-      photo: "/judges/judge.jpg"
-    }
+      photo: "/judges/elizabeth.jpg"
+    },
+    {
+      name: "Dimmykiss",
+      title: "Spoken Word Artist & Lawyer",
+      description: "Motivational speaker combining legal expertise with creative expression to inspire young Nigerians.",
+      photo: "/judges/dimmykiss.jpg"
+    },
   ]
 
   return (
@@ -97,10 +111,12 @@ export default function JudgePage() {
         {/* Dark overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/60 to-black/70" />
         
-        {/* Header - NO HAMBURGER */}
-        <header className="absolute top-0 left-0 right-0 z-20 w-full px-6 lg:px-16 py-5 flex items-center justify-between">
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 backdrop-blur-sm rounded-full px-5 py-2.5 shadow-lg">
-            <span className="text-white font-bold text-lg">ikonetU</span>
+        {/* Header */}
+        <header className="absolute top-0 left-0 right-0 z-20 w-full px-6 lg:px-16 py-4 flex items-center justify-between">
+          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md rounded-full px-4 py-1.5 shadow-lg border border-white/20">
+            <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-purple-300 bg-clip-text text-transparent font-semibold text-sm tracking-wide">
+              ikonetU
+            </span>
           </div>
         </header>
 
@@ -114,10 +130,10 @@ export default function JudgePage() {
               Join our panel of industry leaders evaluating Africa's next generation of founders in 60-second pitches.
             </p>
             <Button 
-              onClick={() => window.open('https://forms.gle/sHve5VZvWejeHr989', '_blank')}
+              asChild
               className="bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 hover:from-purple-700 hover:via-purple-600 hover:to-pink-600 text-white px-8 py-3 rounded-full text-base font-semibold shadow-lg"
             >
-              Become a Judge
+              <a href="#apply">Become a Judge</a>
             </Button>
           </div>
         </div>
@@ -145,17 +161,17 @@ export default function JudgePage() {
               {
                 icon: "/icons/discover-talent.png",
                 title: "Discover Talent Early",
-                description: "Get first access to 10,000+ promising African student entrepreneurs. Identify potential investments or partnerships."
+                description: "Get first access to 10,000+ promising African student entrepreneurs before anyone else. Identify potential Investments and Partnerships."
               },
               {
                 icon: "/icons/build-brand.png",
                 title: "Build Your Brand",
-                description: "Position yourself as a thought leader supporting African innovation. Gain visibility across student networks and media coverage."
+                description: "Position yourself as a thought leader supporting African innovation and Creativity. Gain visibility across 2000+ Universities across Africa"
               },
               {
                 icon: "/icons/network.png",
                 title: "Network with Leaders",
-                description: "Connect with fellow judges from SeedLegals, Tide, and other leading companies shaping the future of African tech."
+                description: "Connect with fellow judges from SeedLegal, InspireCraft Global,  Tide Banking and other leading companies shaping the future of African Entrepreneurship Ecosystem."
               },
               {
                 icon: "/icons/give-back.png",
@@ -165,12 +181,12 @@ export default function JudgePage() {
               {
                 icon: "/icons/spot-trends.png",
                 title: "Spot Trends",
-                description: "See emerging ideas and market opportunities across diverse sectors before they become mainstream."
+                description: "Discover emerging ideas and market opportunities across diverse sectors before they become mainstream."
               },
               {
                 icon: "/icons/efficient.png",
                 title: "Efficient Format",
-                description: "Review pitches in 60 seconds each. No lengthy decks or meetings required. Judge on your schedule."
+                description: "Review Video pitches in 60 seconds. No lengthy decks or meetings required. Evaluate at your pace."
               }
             ].map((benefit, idx) => (
               <div
@@ -216,7 +232,7 @@ export default function JudgePage() {
               {
                 number: "1",
                 title: "Browse Pitches",
-                description: "Access our platform and watch 60-second video pitches from student entrepreneurs across Africa. Filter by industry, country, or stage."
+                description: "Access the platform and watch 60-second video pitches from student Entrepreneurs across Africa. Filter by Industry, Country, or Stage."
               },
               {
                 number: "2",
@@ -226,12 +242,12 @@ export default function JudgePage() {
               {
                 number: "3",
                 title: "Connect Directly",
-                description: "Message founders you're interested in. No gatekeepers. Start conversations that could lead to investments, partnerships, or mentorship."
+                description: "Contact Founders you're interested in directly via our platform Chat box. Start conversations that could lead to Investments, Partnerships, or Mentorship."
               },
               {
                 number: "4",
                 title: "Select Winners",
-                description: "Join final judging panel to select top 3 winners. Participate in awards ceremony and celebrate winners with the community."
+                description: "Join final Judging Panel to select the Top 3 Winners. Participate in the Awards ceremony and celebrate winners with the community."
               }
             ].map((step, idx) => (
               <div
@@ -300,24 +316,24 @@ export default function JudgePage() {
       </section>
 
       {/* Judges Panel Section */}
-      <section className="relative w-full px-6 lg:px-16 py-20 bg-gradient-to-b from-purple-50/50 via-pink-50/30 to-purple-50/50 overflow-hidden">
-        {/* Dot grid pattern */}
-        <div className="absolute inset-0 opacity-[0.15] pointer-events-none">
-          <div className="w-full h-full" style={{
-            backgroundImage: 'radial-gradient(circle, #a855f7 1px, transparent 1px)',
-            backgroundSize: '30px 30px'
-          }} />
-        </div>
-
-        <div className="max-w-6xl mx-auto relative z-10">
-          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12 text-gray-900">
-            Join Our <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">Prestigious</span> Panel
-          </h2>
+      <section className="w-full px-6 lg:px-16 py-12 bg-gradient-to-b from-white via-purple-50/20 to-white">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12 relative">
+            <div className="absolute top-0 right-1/3 w-7 h-7 text-yellow-400 opacity-60">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2L14.5 9.5L22 9.5L16 14.5L18.5 22L12 17L5.5 22L8 14.5L2 9.5L9.5 9.5L12 2Z" />
+              </svg>
+            </div>
+            
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">
+              Meet Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">Judges</span>
+            </h2>
+          </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
             {judges.map((judge, idx) => (
-              <div key={idx} className="group">
-                <div className="relative mb-3 rounded-xl overflow-hidden aspect-square shadow-md group-hover:shadow-xl transition-shadow">
+              <div key={idx} className="group flex flex-col">
+                <div className="relative mb-3 rounded-xl overflow-hidden aspect-square shadow-md group-hover:shadow-lg transition-shadow">
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500" />
                   <img 
                     src={judge.photo} 
@@ -327,12 +343,46 @@ export default function JudgePage() {
                 </div>
 
                 <h3 className="font-bold text-sm text-gray-900 mb-0.5">{judge.name}</h3>
-                <p className="text-xs text-gray-600 line-clamp-2">{judge.title}</p>
+                <p className="text-xs text-purple-600 font-medium mb-1">{judge.title}</p>
+                <p className="text-xs text-gray-600 leading-snug line-clamp-3 mb-2">
+                  {judge.description}
+                </p>
+                {judge.description.length > 150 && (
+                  <button 
+                    onClick={() => setSelectedJudge(judge)}
+                    className="text-xs text-purple-600 font-medium hover:text-purple-700 text-left"
+                  >
+                    Read more →
+                  </button>
+                )}
               </div>
             ))}
           </div>
         </div>
       </section>
+
+      {/* Modal for full description */}
+      {selectedJudge && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedJudge(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl p-6 max-w-lg w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-bold text-xl text-gray-900 mb-1">{selectedJudge.name}</h3>
+            <p className="text-sm text-purple-600 font-medium mb-4">{selectedJudge.title}</p>
+            <p className="text-sm text-gray-600 leading-relaxed mb-4">{selectedJudge.description}</p>
+            <button 
+              onClick={() => setSelectedJudge(null)}
+              className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Who We're Looking For Section */}
       <section className="relative w-full px-6 lg:px-16 py-20 bg-white overflow-hidden">
@@ -418,7 +468,7 @@ export default function JudgePage() {
         </div>
 
         <div className="max-w-2xl mx-auto relative z-10">
-          <h2 className="text-3xl sm:text-4xl font-bold text-center text-white mb-3">
+          <h2 className="text-3xl sm:text-4xl font-bold text-center text-white mb-3" id="apply">
             Apply To Be A Judge
           </h2>
           <p className="text-center text-purple-200 mb-10 text-sm">
