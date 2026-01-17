@@ -344,17 +344,28 @@ export default function JudgePage() {
 
                 <h3 className="font-bold text-sm text-gray-900 mb-0.5">{judge.name}</h3>
                 <p className="text-xs text-purple-600 font-medium mb-1">{judge.title}</p>
-                <p className="text-xs text-gray-600 leading-snug line-clamp-3 mb-2">
-                  {judge.description}
-                </p>
-                {judge.description.length > 150 && (
+                <div className="relative">
+                  <p 
+                    ref={(el) => {
+                      if (el) {
+                        const isTruncated = el.scrollHeight > el.clientHeight;
+                        const button = el.nextElementSibling;
+                        if (button && button.tagName === 'BUTTON') {
+                          button.style.display = isTruncated ? 'block' : 'none';
+                        }
+                      }
+                    }}
+                    className="text-xs text-gray-600 leading-snug line-clamp-3 mb-2"
+                  >
+                    {judge.description}
+                  </p>
                   <button 
                     onClick={() => setSelectedJudge(judge)}
-                    className="text-xs text-purple-600 font-medium hover:text-purple-700 text-left"
+                    className="text-xs text-purple-600 font-medium hover:text-purple-700 text-left hidden"
                   >
                     Read more →
                   </button>
-                )}
+                </div>
               </div>
             ))}
           </div>
