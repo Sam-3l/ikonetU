@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 export default function FounderPage() {
   const [timeLeft, setTimeLeft] = useState({ days: 17, hours: 22, minutes: 45, seconds: 13 })
   const [email, setEmail] = useState("")
+  const [selectedJudge, setSelectedJudge] = useState(null)
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -23,47 +24,59 @@ export default function FounderPage() {
 
   const judges = [
     {
+      name: "Adenola Adegbesan",
+      title: "Host, Ikonetu",
+      description: "Prince Adenola Adegbesan is a UK-based legal innovator and venture strategist serving as Project Lead of IkonetU, a global fundraising platform enabling African entrepreneurs to raise capital through 60-second video pitches. He is also Founder & CEO of InspireCraft Global Limited, advising organisations on AI governance and cross-border business transformation. A qualified barrister with venture capital experience, he is recognised for architecting systemic change most notably contributing to Nigeria’s historic police reform, while building scalable, impact-driven ventures across Africa, the UK, and the United States.",
+      photo: "/judges/adenola.jpg"
+    },
+    {
       name: "Anthony Rose",
       title: "Founder & CEO, SeedLegals",
-      description: "Serial tech entrepreneur who served the BBC and now helps 50,000+ startups complete funding rounds.",
-      photo: "/judges/anthony-rose.jpg"
+      description: "Pioneer in Legaltech who saved the BBC and now helps 50,000+ startups complete funding rounds.",
+      photo: "/judges/anthony-rose.png"
     },
     {
       name: "Venkatesh Bharti",
-      title: "Founder, Virtu-invest & students",
-      description: "Angel investor who has written 350+ granted IPs across IoT, health-tech, and education technology.",
-      photo: "/judges/judge.jpg"
+      title: "Founder, Vastav Intellect IP Solutions",
+      description: "Award-winning scientist with 80+ granted IPs across IoT, health-tech, and education technology.",
+      photo: "/judges/bharti.png"
     },
     {
-      name: "Okoswo Temiloluwa",
-      title: "Former Digital Growth Marketing",
-      description: "Funnel optimization specialist who designed 150+ conversion-optimized funnels across 15+ industries.",
-      photo: "/judges/judge.jpg"
+      name: "Okeowo Temiloluwa",
+      title: "Founder, Funnel Upscale LLC",
+      description: "Funnel strategist who has designed 150+ conversion-optimized funnels across 15+ industries.",
+      photo: "/judges/okeowo.png"
     },
     {
       name: "Favour Ben",
-      title: "Founder & CEO, Roots and Radiance",
-      description: "Marketing and PR strategist & Business lecturer at Arden University supporting hair, beauty, and creative entrepreneurs.",
-      photo: "/judges/favour-ben.jpg"
+      title: "Founder & CEO, Roots and Radiance Network",
+      description: "Business lecturer at Arden University supporting hair, beauty, and creative entrepreneurs.",
+      photo: "/judges/favour-ben.png"
     },
     {
       name: "Busola Dakolo",
-      title: "Founder, SistahKitchen",
-      description: "Professional photographer and Head of Communications at C-HUB, empowering African innovation.",
-      photo: "/judges/judge.jpg"
+      title: "Founder, SkillsKitchen",
+      description: "Professional photographer and Head of Communications at CcHUB, empowering African innovation.",
+      photo: "/judges/busola.png"
     },
     {
-      name: "Dimmykiss",
-      title: "Spoken Word Artist & Lawyer",
-      description: "Motivational speaker combining legal expertise with creative expression to inspire young Nigerians.",
-      photo: "/judges/judge.jpg"
+      name: "Osayi Ebohon",
+      title: "Transformational Speaker",
+      description: "Osayi Ebohon is an award-winning transformational speaker, author of BecomingHer: A Mindset and Legacy Transformational Journal, and Convener of the BecomingHer community. With 27 years in social work specializing in adoption and 19 years in real estate, she empowers women globally to achieve financial independence, build wealth, and create lasting legacies through faith-driven mentorship and advocacy.",
+      photo: "/judges/osayi.jpg"
     },
     {
       name: "Elizabeth Adediji",
       title: "Founder, The Abeke Brand",
       description: "MA in Fashion and Creative Pattern Cutting, blending technical precision with aesthetic excellence.",
-      photo: "/judges/judge.jpg"
-    }
+      photo: "/judges/elizabeth.jpg"
+    },
+    {
+      name: "Dimmykiss",
+      title: "Spoken Word Artist & Lawyer",
+      description: "Motivational speaker combining legal expertise with creative expression to inspire young Nigerians.",
+      photo: "/judges/dimmykiss.jpg"
+    },
   ]
 
   return (
@@ -84,16 +97,15 @@ export default function FounderPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
             {/* Left Column */}
             <div className="relative">
-              {/* Africa Map SVG - MORE VISIBLE */}
-              <div className="absolute -left-12 -top-12 w-72 h-80 opacity-20 pointer-events-none z-0">
-                <svg viewBox="0 0 200 280" className="w-full h-full text-purple-500">
-                  <defs>
-                    <pattern id="dots" x="0" y="0" width="5" height="5" patternUnits="userSpaceOnUse">
-                      <circle cx="2" cy="2" r="1.2" fill="currentColor" />
-                    </pattern>
-                  </defs>
-                  <path fill="url(#dots)" d="M100,10 L108,20 L115,35 L120,50 L124,65 L127,80 L129,95 L130,110 L131,125 L131,140 L130,155 L128,170 L125,185 L120,200 L114,215 L106,228 L96,238 L86,245 L76,250 L66,253 L56,254 L46,253 L36,250 L26,245 L18,238 L12,228 L8,215 L5,200 L3,185 L2,170 L2,155 L3,140 L5,125 L8,110 L12,95 L18,80 L26,65 L36,50 L46,35 L56,20 L66,10 L76,5 L86,3 L96,2 Z" />
-                </svg>
+              {/* Africa Map SVG */}
+              <div className="absolute -left-[200px] -top-[150px] w-[600px] h-[600px] pointer-events-none z-0">
+                <img 
+                  src="/map.svg" 
+                  alt="" 
+                  className="w-full h-full object-contain opacity-50"
+                  style={{ filter: 'invert(36%) sepia(85%) saturate(4636%) hue-rotate(259deg) brightness(96%) contrast(91%)' }}
+                  aria-hidden="true"
+                />
               </div>
 
               {/* Badge */}
@@ -317,41 +329,76 @@ export default function FounderPage() {
       </section>
 
       {/* Partners Section - Full Width */}
-      <section className="w-full px-6 lg:px-16 py-12 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-3 text-gray-900">
-            Backed by <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">Industry Leaders</span>
-          </h2>
-          <p className="text-center text-gray-600 text-sm mb-10">
-            Partnering with Leading UK and African Tech Companies.
-          </p>
+<section className="w-full px-6 lg:px-16 py-12 bg-white">
+  <div className="max-w-5xl mx-auto">
+    <h2 className="text-2xl sm:text-3xl font-bold text-center mb-3 text-gray-900">
+      Backed by <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">Industry Leaders</span>
+    </h2>
+    <p className="text-center text-gray-600 text-sm mb-10">
+      Partnering with Leading UK and African Tech Companies.
+    </p>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[
-              { name: "SeedLegals", img: "/partners/seedlegals.jpg" },
-              { name: "Tide", type: "text", bg: "bg-blue-600", text: "tide" },
-              { name: "Grapevine", img: "/partners/grapevine.jpg" },
-              { name: "Stones", type: "text", bg: "bg-black", text: "STONES" },
-            ].map((partner, idx) => (
-              <div key={idx} className={`flex items-center justify-center p-5 rounded-lg ${partner.bg || "bg-gray-50"} hover:shadow-md transition-shadow`}>
-                {partner.type === "text" ? (
-                  <span className="text-white font-bold text-lg">{partner.text}</span>
-                ) : (
-                  <img src={partner.img} alt={partner.name} className="h-8 w-auto object-contain grayscale hover:grayscale-0 transition-all" />
-                )}
-              </div>
-            ))}
-          </div>
+    {/* First Row - 4 Partners with Images */}
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+      <div className="flex items-center justify-center h-32">
+        <img 
+          src="/partners/seedlegals.png" 
+          alt="SeedLegals" 
+          className="w-full h-full object-contain"
+        />
+      </div>
+      <div className="flex items-center justify-center h-32">
+        <img 
+          src="/partners/tide.png" 
+          alt="Tide" 
+          className="w-full h-full object-contain"
+        />
+      </div>
+      <div className="flex items-center justify-center h-32">
+        <img 
+          src="/partners/grapevine.png" 
+          alt="Grapevine" 
+          className="w-full h-full object-contain"
+        />
+      </div>
+      <div className="flex items-center justify-center h-32 bg-black rounded-lg px-4">
+        <img 
+          src="/partners/stones.png" 
+          alt="Stones" 
+          className="w-full h-full object-contain"
+        />
+      </div>
+    </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-6">
-            {["The Abeke Brand", "Huxley", "Vastav Intellect", "Russell Bedford"].map((name, idx) => (
-              <div key={idx} className="flex items-center justify-center p-5 bg-gray-50 rounded-lg hover:shadow-md transition-shadow">
-                <span className="text-gray-700 font-medium text-sm text-center">{name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+    {/* Second Row - 4 Partners */}
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div className="flex items-center justify-center h-32">
+        <span className="text-gray-900 font-semibold text-base text-center">The Abeke Brand</span>
+      </div>
+      <div className="flex items-center justify-center h-32">
+        <img 
+          src="/partners/funnel.png" 
+          alt="Funnel Upscale" 
+          className="w-full h-full object-contain"
+        />
+      </div>
+      <div className="flex items-center justify-center h-32">
+        <img 
+          src="/partners/vastav.png" 
+          alt="Vastav Intellect" 
+          className="w-full h-full object-contain"
+        />
+      </div>
+      <div className="flex items-center justify-center h-32">
+        <img 
+          src="/partners/russell-bedford.png" 
+          alt="Russell Bedford" 
+          className="w-full h-full object-contain"
+        />
+      </div>
+    </div>
+  </div>
+</section>
 
       {/* Judges Section - Full Width */}
       <section className="w-full px-6 lg:px-16 py-12 bg-gradient-to-b from-white via-purple-50/20 to-white">
@@ -370,7 +417,7 @@ export default function FounderPage() {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
             {judges.map((judge, idx) => (
-              <div key={idx} className="group">
+              <div key={idx} className="group flex flex-col">
                 <div className="relative mb-3 rounded-xl overflow-hidden aspect-square shadow-md group-hover:shadow-lg transition-shadow">
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500" />
                   <img 
@@ -382,10 +429,43 @@ export default function FounderPage() {
 
                 <h3 className="font-bold text-sm text-gray-900 mb-0.5">{judge.name}</h3>
                 <p className="text-xs text-purple-600 font-medium mb-1">{judge.title}</p>
-                <p className="text-xs text-gray-600 leading-snug line-clamp-3">{judge.description}</p>
+                <p className="text-xs text-gray-600 leading-snug line-clamp-3 mb-2">
+                  {judge.description}
+                </p>
+                {judge.description.length > 150 && (
+                  <button 
+                    onClick={() => setSelectedJudge(judge)}
+                    className="text-xs text-purple-600 font-medium hover:text-purple-700 text-left"
+                  >
+                    Read more →
+                  </button>
+                )}
               </div>
             ))}
           </div>
+
+          {/* Modal for full description */}
+          {selectedJudge && (
+            <div 
+              className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+              onClick={() => setSelectedJudge(null)}
+            >
+              <div 
+                className="bg-white rounded-2xl p-6 max-w-lg w-full"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="font-bold text-xl text-gray-900 mb-1">{selectedJudge.name}</h3>
+                <p className="text-sm text-purple-600 font-medium mb-4">{selectedJudge.title}</p>
+                <p className="text-sm text-gray-600 leading-relaxed mb-4">{selectedJudge.description}</p>
+                <button 
+                  onClick={() => setSelectedJudge(null)}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
