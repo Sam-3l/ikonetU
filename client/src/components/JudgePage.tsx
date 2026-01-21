@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { api } from "@/lib/apiClient";
+import { Description } from "@radix-ui/react-toast"
+import { title } from "process"
 
 export default function JudgePage() {
   const [selectedJudge, setSelectedJudge] = useState(null)
@@ -49,7 +51,7 @@ export default function JudgePage() {
 
   const judges = [
     {
-      name: "Adenola Adegbesan",
+      name: "Prince Adenola Adegbesan",
       title: "Host, Ikonetu",
       description: "Prince Adenola Adegbesan is a UK-based legal innovator and venture strategist serving as Project Lead of IkonetU, a global fundraising platform enabling African entrepreneurs to raise capital through 60-second video pitches. He is also Founder & CEO of InspireCraft Global Limited, advising organisations on AI governance and cross-border business transformation. A qualified barrister with venture capital experience, he is recognised for architecting systemic change most notably contributing to Nigeria’s historic police reform, while building scalable, impact-driven ventures across Africa, the UK, and the United States.",
       photo: "/judges/adenola.jpg"
@@ -57,31 +59,31 @@ export default function JudgePage() {
     {
       name: "Anthony Rose",
       title: "Founder & CEO, SeedLegals",
-      description: "Pioneer in Legaltech who saved the BBC and now helps 50,000+ startups complete funding rounds.",
+      description: "Anthony is founder and CEO at SeedLegals, a legaltech platform that lets startup founders get investment ready, do a funding round, and complete the legals needed to build their business at a fraction of the cost of using a law firm. Over 50,000 startups use SeedLegals. Anthony's career has included 3D graphics, P2P music, internet video, social TV and heading up BBC iPlayer. Back in 2009 Wired Magazine's cover story billed him as The Man Who Saved The BBC.",
       photo: "/judges/anthony-rose.png"
     },
     {
       name: "Venkatesh Bharti",
       title: "Founder, Vastav Intellect IP Solutions",
-      description: "Award-winning scientist with 80+ granted IPs across IoT, health-tech, and education technology.",
+      description: "Venkatesh Bharti is a scientist, inventor, entrepreneur, and consultant known for his work in innovation, intellectual property, and technology commercialization. He has been recognized with the Young & Innovative Scientist Award by India's Defence Research and Development Organisation (DRDO) and has 80+ granted intellectual properties (IPs) across domains such as IoT, health-tech, legal-tech, and education technology. He is the founder and director of ventures like Vastav Intellect IP Solutions LLP and Vastav Incubatex & Entrepreneurship Foundation (VIEF), through which he provides strategic consulting on innovation and startups and mentors founders on IP strategy and commercialisation.",
       photo: "/judges/bharti.png"
     },
     {
       name: "Okeowo Temiloluwa",
       title: "Founder, Funnel Upscale LLC",
-      description: "Funnel strategist who has designed 150+ conversion-optimized funnels across 15+ industries.",
+      description: "Okeowo Temiloluwa Emmanuel is a funnel strategist, automation expert, and founder of Funnel Upscale LLC, a digital growth agency focused on helping businesses turn traffic into leads and customers through high-performing sales funnels and automation systems. He has designed 150+ conversion-optimized funnels across more than 15 industries, leveraging tools like GoHighLevel and ClickFunnels to support sustainable business growth.",
       photo: "/judges/okeowo.png"
     },
     {
       name: "Favour Ben",
       title: "Founder & CEO, Roots and Radiance Network",
-      description: "Business lecturer at Arden University supporting hair, beauty, and creative entrepreneurs.",
+      description: "Favour Ben is a business lecturer at Arden University and the Founder and CEO of Roots and Radiance Network CIC, a UK-based organisation dedicated to supporting hair, beauty, and creative entrepreneurs. Through this work, she promotes inclusive entrepreneurship by providing access to information, skills development, and opportunities that enable individuals to build and sustain thriving businesses in the UK.",
       photo: "/judges/favour-ben.png"
     },
     {
       name: "Busola Dakolo",
       title: "Founder, SkillsKitchen",
-      description: "Professional photographer and Head of Communications at CcHUB, empowering African innovation.",
+      description: "Busola Dakolo is a professional photographer, entrepreneur, and advocate based in the UK. She holds a degree in Geology and Mineral Resources from the University of Ilorin and a Diploma in Photography from the New York Film Academy. Busola is the founder of SkillsKitchen, a training initiative that empowers women and young people with practical, income-generating skills. She serves as Head of Communications at Co-creation Hub (CcHUB), an innovation centre dedicated to accelerating the application of social capital and technology for economic prosperity across Africa. A brand and personal brand photographer, Busola is passionate about visual storytelling and helping individuals and brands communicate their authentic narratives through compelling imagery.",
       photo: "/judges/busola.png"
     },
     {
@@ -93,15 +95,45 @@ export default function JudgePage() {
     {
       name: "Elizabeth Adediji",
       title: "Founder, The Abeke Brand",
-      description: "MA in Fashion and Creative Pattern Cutting, blending technical precision with aesthetic excellence.",
+      description: "Elizabeth Adediji is the founder and director of The Abeke Brand Limited, a UK-based fashion company specializing in accessories and clothing. She holds an MA in Fashion and Creative Pattern Cutting from Nottingham Trent University, where she developed expertise in sewing, tailoring, and innovative design. Through her freelance work and academic training, Elizabeth has demonstrated a strong commitment to the craft of fashion design, with particular emphasis on technical precision and aesthetic excellence. As a creative entrepreneur, she applies her specialized skills in pattern cutting and garment construction to deliver quality fashion pieces that reflect both her technical proficiency and creative vision.",
       photo: "/judges/elizabeth.jpg"
     },
     {
       name: "Dimmykiss",
       title: "Spoken Word Artist & Lawyer",
-      description: "Motivational speaker combining legal expertise with creative expression to inspire young Nigerians.",
+      description: "Dimmykiss is a Nigerian spoken word artist, poet, motivational speaker, and lawyer. He holds an LLB degree and is known for his engaging motivational content shared across social media platforms including Instagram, Facebook, Twitter, and YouTube. Dimmykiss combines his legal background with his passion for creative expression to deliver thought-provoking messages that inspire and educate his audience. His unique approach blends humor with valuable life lessons, making him a popular voice among young Nigerians seeking motivation and personal development.",
       photo: "/judges/dimmykiss.jpg"
     },
+    {
+      name: "Celine Ofori-Amanfo",
+      title: "Founder & CEO, GroupGiftz",
+      description: "Celine Ofori-Amanfo is the Founder and CEO of GroupGiftz and a seasoned startup advisor with 15 years of experience in innovation management. An alumna of HEC Paris, Harvard Business School Online, and Cornell, she specializes in executing business strategies from ideation to MVP. Celine is passionate about mentorship, business expansion, and empowering women in entrepreneurship.",
+      photo: "/judges/celine.jpg"
+    },
+    {
+      name: "Dr Stephen Akintayo",
+      title: "Chairman, SACI Holdings",
+      description: "Dr Stephen Akintayo is the Chairman of SACI Holdings, a private equity and venture investment firm dedicated to backing high-growth companies including AI-enabled businesses and scalable ventures across Africa, the UK, and the US with a strategic focus on value creation and long-term impact. He is a serial entrepreneur, seasoned investor, and author of 45+ books on wealth creation and business strategy, known for building and exiting multiple successful enterprises across real estate, technology, digital marketing, and investment services. Previously the Founder and CEO of Gtext Holdings, a multinational conglomerate with diversified interests in real estate and technology, Dr Akintayo transitioned to a strategic leadership role to scale his investment vision and mentorship ecosystem.",
+      photo: "/judges/stephen-akintayo.jpg"
+    },
+    {
+      name: "Mr Bola Ray",
+      title : "CEO, EIB Network Group",
+      description: "Mr Bola Ray (Nathan Kwabena Anokye Adisi) is a Ghanaian media entrepreneur, business leader, and visionary executive with over two decades of experience shaping Africa’s media and entertainment landscape. As Chief Executive Officer of EIB Network Group and CEO of Empire Entertainment, he has led the growth of one of West Africa’s most dynamic media conglomerates, spanning radio, television, digital platforms, and live events. Under his leadership, the EIB Network home to brands such as Starr FM, GHOne TV, and Live FM has become a pioneering force in broadcasting and content creation. Recognised for his leadership and influence, he has been appointed Country Board Chair for Ghana at the Global Entrepreneurship Festival 2025 and was the first inductee into The Creatives’ Space of Fame, celebrating his lasting impact on the creative industries.",
+      photo: "/judges/bola-ray.jpg"
+    },
+    {
+      name: "Femi (S.O.A) Olukoya",
+      title: "Global Managing Partner at GrapeVine360 Solutions Group",
+      description: "Femi (S.O.A) is a purpose-driven, visionary leader with over 25 years’ international experience in technology-enabled transformation, organizational strategy, and stakeholder engagement. He has a proven track record of guiding complex organizations through digital and operational change initiatives that deliver measurable improvements in performance, productivity, governance, and resilience. This includes over a decade at global magic circle law firm Linklaters- focused on bringing legal certainty to a changing world. He is a highly valued and trusted advisor on several boards, including an award-winning member of the renowned GEF (Global Entrepreneurship Festival) Board. He holds an MBA in International Business and a Bachelor of Engineering (Hons) in Electronic Engineering and is currently completing a Doctor of Business Administration (DBA) in Strategy and Innovation. His research focuses on comparative artificial intelligence strategies across governments, multinational organizations, and non-profit institutions, providing practical insight into emerging technology governance, risk, and ethical leadership.",
+      photo: "/judges/femi-olukoya.jpg"
+    },
+    {
+      name: "Dr. Kelly Daniels",
+      title: "Relationship Consultant & Family Advocate",
+      description: "Dr. Kelly Daniels is a relationship consultant and family advocate. Author of 85 books on love, marital, and family affairs. He is also a presenter on Ghana's prominent media corporation, the EIB NETWORK that  manages a number of radio and tv stations in active service to humanity. As an on air personality, Dr. Kelly Daniels is one of the most prolific  counselors on Ghana's media and has been serving for over a decade in service to the community and beyond. He is a serial conference host on love affairs within and outside Ghana, armed with a degree in counseling, a masters degree in counseling, and an honorary doctorate degree in Divinity. Dr. Kelly Daniels is a faith based person and as such is an itinerant preacher to multiple faith platforms, promoting the message of love and Christian living as a blessing to family life. As a passionate filmmaker and actor, Dr. Kelly Daniels has a structure in place to convert all his published books into movies, for better conveyance of the love message. Dr. Kelly Daniels believes that the world will gradually become a better place if we all selflessly love each other, at least one soul at a time. He is the founding head of LOVE NATION, the umbrella covering all initiatives birthed by him by God's grace.",
+      photo: "/judges/kelly-daniels.jpg"
+    }
   ]
 
   return (
@@ -112,7 +144,7 @@ export default function JudgePage() {
         <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/60 to-black/70" />
         
         {/* Header */}
-        <header className="absolute top-0 left-0 right-0 z-20 w-full px-6 lg:px-16 py-4 flex items-center justify-between">
+        <header className="absolute top-0 left-0 right-0 z-20 w-full px-6 lg:px-3 py-3 flex items-center justify-between">
           <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md rounded-full px-4 py-1.5 shadow-lg border border-white/20">
             <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-purple-300 bg-clip-text text-transparent font-semibold text-sm tracking-wide">
               ikonetU
@@ -326,7 +358,7 @@ export default function JudgePage() {
             </div>
             
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">
-              Meet Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">Judges</span>
+              Join Other Industry <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">Leaders</span> On The Panel
             </h2>
           </div>
 
