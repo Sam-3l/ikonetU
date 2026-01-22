@@ -106,7 +106,13 @@ export default function FounderPage() {
       title: "Relationship Consultant & Family Advocate",
       description: "Dr. Kelly Daniels is a relationship consultant and family advocate. Author of 85 books on love, marital, and family affairs. He is also a presenter on Ghana's prominent media corporation, the EIB NETWORK that  manages a number of radio and tv stations in active service to humanity. As an on air personality, Dr. Kelly Daniels is one of the most prolific  counselors on Ghana's media and has been serving for over a decade in service to the community and beyond. He is a serial conference host on love affairs within and outside Ghana, armed with a degree in counseling, a masters degree in counseling, and an honorary doctorate degree in Divinity. Dr. Kelly Daniels is a faith based person and as such is an itinerant preacher to multiple faith platforms, promoting the message of love and Christian living as a blessing to family life. As a passionate filmmaker and actor, Dr. Kelly Daniels has a structure in place to convert all his published books into movies, for better conveyance of the love message. Dr. Kelly Daniels believes that the world will gradually become a better place if we all selflessly love each other, at least one soul at a time. He is the founding head of LOVE NATION, the umbrella covering all initiatives birthed by him by God's grace.",
       photo: "/judges/kelly-daniels.jpg"
-    }
+    },
+    {
+      name: "Shelley Cowan",
+      title: "Founder & CEO, Access Avenue International Limited",
+      description: "Shelley Cowan is a disabled female entrepreneur, tech founder, international speaker, and advocate for inclusion and accessibility, with over 30 years of lived experience navigating disability, health and engaging with communities, organisations, and industries to create meaningful change. She founded JustUs (group for adults with disabilities) and Access Avenue International Limited, developing platforms that empower underrepresented communities and create inclusive solutions for accessible travel. Shelley is Northern Ireland’s first Purple Tuesday Ambassador, promoting enhanced customer experiences for people with disabilities, and serves as an advisor for the Accessible Hospitality Alliance. She has shared her expertise on accessibility and inclusion as a TEDx speaker at Black Mountain, and her work has been recognised with the Diversity in Tech Award and as a finalist for the National Diversity Awards Entrepreneur of Excellence. Shelley empowers diverse entrepreneurs and leaders to overcome barriers, scale their ventures and create real, global impact.",
+      photo: "/judges/shelley-cowan.jpg"
+    }    
   ]
 
   return (
