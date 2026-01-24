@@ -487,13 +487,6 @@ export default function FounderPage() {
                 className="w-full h-full object-contain"
               />
             </div>
-            <div className="flex items-center justify-center h-32">
-              <img 
-                src="/partners/brothers-clique.png" 
-                alt="Brothers Clique"
-                className="w-full h-full object-contain"
-              />
-            </div>
             <div className="flex items-center justify-center h-32 bg-black rounded-lg px-4">
               <img 
                 src="/partners/stones.png" 
@@ -504,7 +497,7 @@ export default function FounderPage() {
           </div>
 
           {/* Second Row - 4 Partners */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
             <div className="flex items-center justify-center h-32">
               <span className="text-gray-900 font-semibold text-base text-center">The Abeke Brand</span>
             </div>
@@ -526,6 +519,17 @@ export default function FounderPage() {
               <img 
                 src="/partners/russell-bedford.png" 
                 alt="Russell Bedford" 
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </div>
+
+          {/* Third Row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="flex items-center justify-center h-32">
+              <img 
+                src="/partners/brothers-clique.png" 
+                alt="Brothers Clique"
                 className="w-full h-full object-contain"
               />
             </div>
