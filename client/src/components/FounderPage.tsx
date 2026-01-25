@@ -599,12 +599,16 @@ export default function FounderPage() {
               onClick={() => setSelectedJudge(null)}
             >
               <div 
-                className="bg-white rounded-2xl p-6 max-w-lg w-full"
+                className="bg-white rounded-2xl p-6 max-w-lg w-full max-h-[90vh] flex flex-col"
                 onClick={(e) => e.stopPropagation()}
               >
                 <h3 className="font-bold text-xl text-gray-900 mb-1">{selectedJudge.name}</h3>
                 <p className="text-sm text-purple-600 font-medium mb-4">{selectedJudge.title}</p>
-                <p className="text-sm text-gray-600 leading-relaxed mb-4">{selectedJudge.description}</p>
+                <div className="overflow-y-auto pr-1 mb-4 flex-1">
+                  <p className="text-sm text-gray-600 leading-relaxed">
+                    {selectedJudge.description}
+                  </p>
+                </div>
                 <button 
                   onClick={() => setSelectedJudge(null)}
                   className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700"
