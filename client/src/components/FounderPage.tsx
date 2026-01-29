@@ -131,6 +131,48 @@ export default function FounderPage() {
       title: "Professor of Hotel Management and Tourism, Atiba University, Oyo, Nigeria",
       description: "Professor Wasiu Adeyemo Babalola is a distinguished academic, industry practitioner, and policy expert in hospitality and tourism development. He is a Professor of Hotel Management and Tourism at Atiba University, Oyo, Nigeria where he contributes to teaching, research, and capacity building in tourism, hospitality management, law, accoubtung, and related disciplines. Beyond academia, Prof. Babalola os the Senior Vice President for Africa at Continent Worldwide Hotels Turkiye and also serves as Chairman of the National Technical/Mirror Committee on Tourism and Related Services in Nigeria, where he plays a strategic role in aligning Nigeria’s tourism standards and practices with international best practices. His work focuses on tourism regulation, quality assurance, sectoral reforms, and the integration of the private sector in national tourism development. With extensive experience spanning academia, professional practice, and policy engagement, Prof. Babalola is a respected voice on cultural tourism, hospitality entrepreneurship, and sustainable tourism development in Nigeria and beyond. He is a frequent speaker at conferences and media platforms, contributing thought leadership on the role of tourism in economic diversification and national development. He is a Rotarian and a Past Assistant Governor of District 9111 and Rotary Internation",
       photo: "/judges/wasiu-adeyemo.jpg"
+    },
+    {
+      name: "Dr Gbenga Eyiolawi",
+      title: "Co-Founder & CEO, VISAROCRAFT Technology LLC",
+      description: "Dr. Gbenga Eyiolawi is Co-Founder and Chief Executive Officer of VISAROCRAFT Technology LLC and Chairman of Tafiki a global food logistics brand where he has revolutionized Nigeria's agricultural technology and logistics sectors through innovative distribution models and supply chain optimization frameworks. With extensive expertise spanning agritech innovation and logistics management, his leadership has earned him recognition as one of Nigeria's Top 50 CEOs by The Guardian Newspaper (2023) and Lead City University's Most Outstanding CEO of the Year (2021 and 2022). With over two decades of transformative impact across agricultural value chains, Eyiolawi has pioneered consignment-based food distribution systems that bridge the gap between farmers and markets, introducing unprecedented operational efficiencies while expanding market access for agricultural products. His unique integration of technology-driven logistics solutions with traditional agricultural commerce has distinguished him as one of Nigeria's most exceptional innovators in the agritech and food distribution ecosystem, creating significant employment opportunities and driving youth empowerment initiatives nationwide.",
+      photo: "/judges/gbenga-eyiolawi.jpg"
+    },
+    {
+      name: "Stephen Camilleri",
+      title: "Entrepreneur, Advisor & Capital Connector",
+      description: "A globally experienced entrepreneur, advisor, and capital connector, I have spent my career supporting founders in building, scaling, and funding businesses across five continents. My work is driven by a clear mission: to back bold entrepreneurs, foster cross-border collaboration, and help transform strong ideas into sustainable, high-impact ventures. I specialize in opening doors for visionary founders—strengthening their brands, refining their strategies, and connecting them with capital through an established international network of investors. Over the past three years, my focus has been on expanding my global network and deepening my understanding of how businesses operate across diverse markets, including the UK, Europe, Africa, and the United States. This has given me first-hand insight into the challenges, opportunities, and cultural nuances that shape entrepreneurial success in different regions. I am actively engaged in sectors including AI, film, fashion, events, energy, and entrepreneurship ecosystems, with a particular passion for innovation hubs and founder-led communities. Alongside my commercial work, mentoring and supporting entrepreneurs has been a consistent thread throughout my career. As a collaborative and people-driven leader, I am committed to sharing real-world experience to help others flourish. Through Flux Global Network and Global Entrepreneur Magazine, I continue to develop legacy projects designed to connect founders, investors, and ideas on a global scale. As a judge, I bring a practical, global, and founder-first perspective—assessing ideas not only on creativity, but on scalability, execution, and long-term impact.",
+      photo: "/judges/stephen-camilleri.jpg"
+    },
+    {
+      name: "Yaw Kyeremateng",
+      title: "Head of Sales, Kuber Realty | Creative Director, The Yaw Brand | Cross-Border Real Estate Investment Specialist (UAE & Ghana)",
+      description: "Yaw Kyeremateng is a Dubai-based real estate professional with over 10 years of experience in the UAE.He serves as Head of Sales at Kuber Realty, leading sales and marketing for Bella Vista, a gated community of 40 homes in Katamanso, Accra. Previously, he built a strong commercial foundation in retail home fashion and flooring, generating AED 30M+ in sales across 20 countries. Since transitioning into real estate, Yaw has closed AED 40M+ in property transactions, assisting 250+ clients in securing homes and investment properties in Dubai. He is also Creative Director of The Yaw Brand, a premium lifestyle label spanning fashion and fragrance. Focus areas: real estate sales and investment advisory, cross-border property (UAE–Ghana), sales strategy, and residential developments.",
+      photo: "/judges/yaw-kyeremateng.jpg"
+    },
+    {
+      name: "Jim Keyes",
+      title: "Former CEO of 7-Eleven and Blockbuster",
+      description: "He is a seasoned business leader, author, and turnaround expert best known for serving as CEO of two iconic global brands: 7-Eleven and Blockbuster. At 7-Eleven, he led a remarkable transformation, driving record profitability, operational discipline, and sustained growth by empowering frontline employees and sharpening customer focus. He later took the helm at Blockbuster during one of the most disruptive periods in retail history, navigating the company through intense technological and market change while gaining deep insight into innovation, disruption, and leadership under pressure. Drawing from decades of executive experience, Keyes is the author of Education Is Freedom, a widely respected book that argues learning not background or circumstance is the ultimate driver of personal and professional success. Today, he is a sought-after speaker and advisor, helping leaders and organizations build resilient cultures, develop talent, and lead with clarity in rapidly changing environments.",
+      photo: "/judges/jim-keyes.jpg"
+    },
+    {
+      name: "Ousseini Oumarou",
+      title: "Cloud & AI Consultant",
+      description: "My name is OUSSEINI OUMAROU. I am a highly motivated Cloud and AI Consultant, uniquely positioned with a strong foundation in both Cloud computing and Artificial Intelligence. My expertise is validated by industry leading certifications. This robust skill set, combined with my background in Cryptocurrency, Web3, and Blockchain, allows me to architect and deploy innovative, scalable, and secure cloud-native solutions, with a particular focus on leveraging advanced AI capabilities to drive transformative business outcomes. I am dedicated to pushing the boundaries of technology to create intelligent systems that redefine possibilities.",
+      photo: "/judges/ousseini-oumarou.jpg"
+    },
+    {
+      name: "Signaturepuffs",
+      title: "Founder, Signaturepuffs",
+      description: "Signaturespuffs is a UK-based pastry brand celebrating culture, flavour and community through freshly prepared West African comfort food. Proudly food hygiene registered and rated 5-star also best known for its soft, fluffy puff-puff, the brand is built on a passion for quality, consistency and creating pastries that feel welcoming to all. Each item is carefully made using quality ingredients and traditional flavours adapted for a multicultural audience. Signaturespuffs brings people from different backgrounds together through what we offer. Beyond puff-puff, the brand continues to expand its menu with well-loved favourites suitable for events, takeaway and delivery.",
+      photo: "/judges/signaturepuffs.jpg"
+    },
+    {
+      name: "Deji Onadeko",
+      title: "Founder & CEO, RedLantan Media",
+      description: "Deji Onadeko is the visionary Founder & CEO of RedLantan Media, where creativity meets purpose. He believes in the power of storytelling to heal, inspire, and transform. As a filmmaker, coach, and speaker, Adedeji dedicates himself to inspiring others to live authentically while raising the standard of creativity and impact in every space he enters. Fueled by his love for life, Deji brings joyful, transformative energy to every project whether he’s producing impactful media or mentoring individuals to become their most authentic selves.",
+      photo: "/judges/deji-onadeko.png"
     }
   ]
 
@@ -530,6 +572,20 @@ export default function FounderPage() {
               <img 
                 src="/partners/brothers-clique.png" 
                 alt="Brothers Clique"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="flex items-center justify-center h-32">
+              <img 
+                src="/partners/rlm.png" 
+                alt="Red Lantan Media"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="flex items-center justify-center h-32">
+              <img 
+                src="/partners/signaturepuffs.png" 
+                alt="Signaturepuffs"
                 className="w-full h-full object-contain"
               />
             </div>
