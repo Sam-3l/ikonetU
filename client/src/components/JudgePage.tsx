@@ -148,7 +148,7 @@ export default function JudgePage() {
     },
     {
       name: "Dr Mayowa Gbenga",
-      title: "Senior Lecturer in Business Management, Ibadan",
+      title: "Senior Lecturer in Business Management, Convenant University, Ogun",
       description: "Dr Mayowa Gbenga Agboola is a Senior Lecturer in Business Management with over eighteen years of experience in teaching, research, and academic leadership within the higher education sector. His expertise spans organisational behaviour, organisational culture, ethics, digital transformation, entrepreneurship, and technology-enabled learning, with a growing focus on artificial intelligence in education. He holds a PhD, MSc, and BSc in Business Administration and has undertaken extensive professional training in management, administration, consulting, and research. Dr Agboola has published in reputable peer-reviewed journals and international conference proceedings, contributing to scholarly discourse on organisational performance, innovation, and education systems. Dr Agboola has served in several senior academic and administrative leadership roles, including directorate and centre-level appointments in open and distance learning, research and innovation, lifelong learning, and entrepreneurship development. He is an experienced postgraduate supervisor and an advocate of student-centred, technology-driven pedagogy. He is an active member and fellow of recognised professional bodies, regularly serves as a journal reviewer and conference speaker, and contributes to academic initiatives aligned with global development priorities, particularly quality education, innovation, and decent work.",
       photo: "/judges/mayowa-gbenga.jpg"
     },
@@ -477,12 +477,16 @@ export default function JudgePage() {
           onClick={() => setSelectedJudge(null)}
         >
           <div 
-            className="bg-white rounded-2xl p-6 max-w-lg w-full"
+            className="bg-white rounded-2xl p-6 max-w-lg w-full max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="font-bold text-xl text-gray-900 mb-1">{selectedJudge.name}</h3>
             <p className="text-sm text-purple-600 font-medium mb-4">{selectedJudge.title}</p>
-            <p className="text-sm text-gray-600 leading-relaxed mb-4">{selectedJudge.description}</p>
+            <div className="overflow-y-auto pr-1 mb-4 flex-1">
+              <p className="text-sm text-gray-600 leading-relaxed">
+                {selectedJudge.description}
+              </p>
+            </div>
             <button 
               onClick={() => setSelectedJudge(null)}
               className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700"
