@@ -13,7 +13,7 @@ export default function JudgePage() {
   const [selectedJudge, setSelectedJudge] = useState(null)
 
   const [formData, setFormData] = useState({
-    fullname: "",
+    fullName: "",
     email: "",
     linkedin: "",
     role: "",
