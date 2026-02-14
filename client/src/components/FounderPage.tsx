@@ -452,7 +452,7 @@ export default function FounderPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="flex items-center justify-center h-32">
               <img 
-                src="/partners/slp.png" 
+                src="/partners/spc.png" 
                 alt="Six Pillars Consulting"
                 className="w-full h-full object-contain"
               />
