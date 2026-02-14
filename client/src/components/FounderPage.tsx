@@ -417,7 +417,7 @@ export default function FounderPage() {
           </div>
 
           {/* Third Row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
             <div className="flex items-center justify-center h-32">
               <img 
                 src="/partners/brothers-clique.png" 
@@ -439,7 +439,40 @@ export default function FounderPage() {
                 className="w-full h-full object-contain"
               />
             </div>
+            <div className="flex items-center justify-center h-32">
+              <img 
+                src="/partners/transform-x.png" 
+                alt="Transform-X"
+                className="w-full h-full object-contain"
+              />
+            </div>
           </div>
+
+          {/* Fourth Row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="flex items-center justify-center h-32">
+              <img 
+                src="/partners/slp.png" 
+                alt="Six Pillars Consulting"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="flex items-center justify-center h-32">
+              <img 
+                src="/partners/vef.png" 
+                alt="Victorian Empowerment Foundation"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="flex items-center justify-center h-32">
+              <img 
+                src="/partners/eia.png" 
+                alt="Executives In Africa"
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </div>
+          
         </div>
       </section>
 
