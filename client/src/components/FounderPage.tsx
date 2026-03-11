@@ -449,7 +449,7 @@ export default function FounderPage() {
           </div>
 
           {/* Fourth Row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
             <div className="flex items-center justify-center h-32">
               <img 
                 src="/partners/spc.png" 
@@ -468,6 +468,24 @@ export default function FounderPage() {
               <img 
                 src="/partners/eia.png" 
                 alt="Executives In Africa"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="flex items-center justify-center h-32">
+              <img 
+                src="/partners/divasity.png" 
+                alt="Divasity"
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </div>
+
+          {/* Fifth Row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="flex items-center justify-center h-32">
+              <img 
+                src="/partners/whizqueen.png" 
+                alt="Whiz Queen"
                 className="w-full h-full object-contain"
               />
             </div>
