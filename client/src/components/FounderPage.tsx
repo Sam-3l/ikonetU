@@ -489,6 +489,20 @@ export default function FounderPage() {
                 className="w-full h-full object-contain"
               />
             </div>
+            <div className="flex items-center justify-center h-32">
+              <img 
+                src="/partners/sdg-youth-connect.png" 
+                alt="SDG Youth Connect"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="flex items-center justify-center h-32">
+              <img 
+                src="/partners/seal-group.png" 
+                alt="SEAL Group"
+                className="w-full h-full object-contain"
+              />
+            </div>
           </div>
           
         </div>
