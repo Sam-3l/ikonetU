@@ -16,6 +16,85 @@ interface VideoUploadProps {
   onCancel?: () => void;
 }
 
+function UploadProgressOverlay({
+  progress,
+  stage,
+}: {
+  progress: number;
+  stage: "trimming" | "uploading" | "finalizing" | null;
+}) {
+  const radius = 52;
+  const circumference = 2 * Math.PI * radius;
+  const clamped = Math.max(0, Math.min(100, progress));
+  const offset = circumference - (clamped / 100) * circumference;
+
+  const stageLabel =
+    stage === "trimming"
+      ? "Trimming video"
+      : stage === "uploading"
+      ? "Uploading video"
+      : stage === "finalizing"
+      ? "Almost there"
+      : "Preparing";
+
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 backdrop-blur-sm">
+      <div className="relative w-32 h-32 flex items-center justify-center">
+        {/* soft pulsing glow behind the ring */}
+        <div className="absolute inset-0 rounded-full bg-primary/30 blur-xl animate-pulse" />
+
+        <svg width="128" height="128" viewBox="0 0 128 128" className="-rotate-90">
+          <defs>
+            <linearGradient id="upload-progress-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#a78bfa" />
+              <stop offset="100%" stopColor="#22d3ee" />
+            </linearGradient>
+          </defs>
+          <circle
+            cx="64"
+            cy="64"
+            r={radius}
+            stroke="rgba(255,255,255,0.15)"
+            strokeWidth="8"
+            fill="none"
+          />
+          <circle
+            cx="64"
+            cy="64"
+            r={radius}
+            stroke="url(#upload-progress-gradient)"
+            strokeWidth="8"
+            fill="none"
+            strokeDasharray={circumference}
+            strokeDashoffset={stage === "finalizing" ? 0 : offset}
+            strokeLinecap="round"
+            style={{ transition: "stroke-dashoffset 0.2s ease-out" }}
+          />
+        </svg>
+
+        <div className="absolute inset-0 flex items-center justify-center">
+          {stage === "finalizing" ? (
+            <Check className="w-9 h-9 text-white" />
+          ) : (
+            <span className="text-2xl font-bold text-white tabular-nums">
+              {clamped}%
+            </span>
+          )}
+        </div>
+      </div>
+
+      <p className="mt-4 text-sm font-medium text-white">{stageLabel}</p>
+      <p className="mt-1 text-xs text-white/60">
+        {stage === "uploading"
+          ? "Please keep this tab open"
+          : stage === "trimming"
+          ? "Processing your clip on-device"
+          : "Wrapping up..."}
+      </p>
+    </div>
+  );
+}
+
 export default function VideoUpload({
   maxDuration = 60,
   onSuccess,
@@ -35,6 +114,8 @@ export default function VideoUpload({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStage, setUploadStage] = useState<"trimming" | "uploading" | "finalizing" | null>(null);
   
   const { toast } = useToast();
   
@@ -301,6 +382,8 @@ export default function VideoUpload({
     }
   
     setIsUploading(true);
+    setUploadProgress(0);
+    setUploadStage(null);
   
     try {
       const token = localStorage.getItem('auth_token');
@@ -314,8 +397,11 @@ export default function VideoUpload({
       const needsTrimming = trimStart > 0.1 || Math.abs(trimEnd - videoDuration) > 0.1;
       
       if (needsTrimming) {
+        setUploadStage("trimming");
         try {
-          fileToUpload = await trimVideoClientSide(videoFile, trimStart, trimEnd);
+          fileToUpload = await trimVideoClientSide(videoFile, trimStart, trimEnd, (pct) => {
+            setUploadProgress(pct);
+          });
         } catch (error) {
           console.error("Trimming error:", error);
           throw new Error("Failed to trim video. Please try again.");
@@ -326,36 +412,23 @@ export default function VideoUpload({
       formData.append("video_file", fileToUpload);
       formData.append("title", title || "My Pitch Video");
       formData.append("duration", trimmedDuration.toFixed(2));
-  
-      const res = await fetch(`${API_BASE_URL}/api/videos/`, {
-        method: "POST",
-        body: formData,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-  
-      if (!res.ok) {
-        if (res.status === 401) {
+
+      setUploadStage("uploading");
+      setUploadProgress(0);
+
+      try {
+        await uploadWithProgress(`${API_BASE_URL}/api/videos/`, formData, token, (pct) => {
+          setUploadProgress(pct);
+        });
+      } catch (err: any) {
+        if (err.status === 401) {
           localStorage.removeItem('auth_token');
           throw new Error("Session expired. Please log in again.");
         }
-        
-        let errorMessage = "Upload failed";
-        try {
-          const error = await res.json();
-          errorMessage = error.message || error.detail || JSON.stringify(error);
-        } catch (e) {
-          const text = await res.text();
-          errorMessage = text || `Server error: ${res.status}`;
-        }
-        throw new Error(errorMessage);
+        throw new Error(err.message || "Upload failed");
       }
-  
-      const contentType = res.headers.get("content-type");
-      if (contentType && contentType.includes("application/json")) {
-        await res.json();
-      }
+
+      setUploadStage("finalizing");
   
       queryClient.invalidateQueries({ queryKey: ["/api/videos/history/"] });
       queryClient.invalidateQueries({ queryKey: ["/api/videos/my/"] });
@@ -380,13 +453,62 @@ export default function VideoUpload({
       });
       
       setIsUploading(false);
+      setUploadStage(null);
+      setUploadProgress(0);
     }
+  };
+
+  const uploadWithProgress = (
+    url: string,
+    formData: FormData,
+    token: string,
+    onProgress: (pct: number) => void
+  ): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", url);
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          onProgress(100);
+          let data = null;
+          try {
+            data = JSON.parse(xhr.responseText);
+          } catch {
+            // non-JSON response is fine, treat as success anyway
+          }
+          resolve(data);
+        } else {
+          let errorMessage = "Upload failed";
+          try {
+            const error = JSON.parse(xhr.responseText);
+            errorMessage = error.message || error.detail || JSON.stringify(error);
+          } catch {
+            errorMessage = xhr.responseText || `Server error: ${xhr.status}`;
+          }
+          reject({ status: xhr.status, message: errorMessage });
+        }
+      };
+
+      xhr.onerror = () => reject({ status: 0, message: "Network error during upload" });
+      xhr.onabort = () => reject({ status: 0, message: "Upload cancelled" });
+
+      xhr.send(formData);
+    });
   };
 
   const trimVideoClientSide = async (
     file: File,
     startTime: number,
-    endTime: number
+    endTime: number,
+    onProgress?: (pct: number) => void
   ): Promise<File> => {
     return new Promise((resolve, reject) => {
       const videoElement = document.createElement('video');
@@ -506,9 +628,15 @@ export default function VideoUpload({
             if (videoElement.currentTime >= endTime || videoElement.ended) {
               videoElement.pause();
               audioElement.pause();
+              onProgress?.(100);
               setTimeout(() => recorder.stop(), 100);
               return;
             }
+            const pct = Math.min(
+              100,
+              Math.round(((videoElement.currentTime - startTime) / duration) * 100)
+            );
+            onProgress?.(pct);
             ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
             requestAnimationFrame(captureFrame);
           };
@@ -746,14 +874,22 @@ export default function VideoUpload({
               
               <button
                 onClick={togglePlayback}
+                disabled={isUploading}
                 className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/40 transition-colors"
               >
-                {!isPlaying && (
+                {!isPlaying && !isUploading && (
                   <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center">
                     <Play className="w-8 h-8 text-black ml-1" />
                   </div>
                 )}
               </button>
+
+              {isUploading && (
+                <UploadProgressOverlay
+                  progress={uploadProgress}
+                  stage={uploadStage}
+                />
+              )}
             </div>
 
             <div className="space-y-4 p-4 bg-muted rounded-lg">
@@ -862,7 +998,10 @@ export default function VideoUpload({
             {isUploading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Processing...
+                {uploadStage === "trimming" && `Trimming... ${uploadProgress}%`}
+                {uploadStage === "uploading" && `Uploading... ${uploadProgress}%`}
+                {uploadStage === "finalizing" && "Finalizing..."}
+                {!uploadStage && "Processing..."}
               </>
             ) : (
               <>
